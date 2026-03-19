@@ -43,6 +43,7 @@ contains
   DX.Blame.Git.Discovery in 'DX.Blame.Git.Discovery.pas',
   DX.Blame.Git.Process in 'DX.Blame.Git.Process.pas',
   DX.Blame.Git.Blame in 'DX.Blame.Git.Blame.pas',
-  DX.Blame.Cache in 'DX.Blame.Cache.pas';
+  DX.Blame.Cache in 'DX.Blame.Cache.pas',
+  DX.Blame.Engine in 'DX.Blame.Engine.pas';
 
 end.
