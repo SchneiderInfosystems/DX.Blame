@@ -60,10 +60,12 @@ Plans:
   2. User can toggle blame display on/off via IDE menu entry and via a configurable hotkey
   3. User can configure display format (author on/off, date format relative/absolute, max length) and blame text color, or color adapts to the current IDE theme automatically
   4. User can navigate to the previous revision (blame on parent commit) for the current line
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 03-01: TBD
+- [ ] 03-01-PLAN.md — Settings persistence (INI) and annotation formatter with unit tests
+- [ ] 03-02-PLAN.md — Editor renderer (INTACodeEditorEvents), menu toggle, and keyboard shortcut
+- [ ] 03-03-PLAN.md — Settings configuration dialog and parent revision navigation
 
 ### Phase 4: Tooltip and Commit Detail
 **Goal**: Users get full commit context on hover and can drill into the complete diff without leaving the IDE
@@ -86,5 +88,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 |-------|----------------|--------|-----------|
 | 1. Package Foundation | 2/2 | Complete   | 2026-03-19 |
 | 2. Blame Data Pipeline | 0/3 | Not started | - |
-| 3. Inline Rendering and UX | 0/? | Not started | - |
+| 3. Inline Rendering and UX | 0/3 | Not started | - |
 | 4. Tooltip and Commit Detail | 0/? | Not started | - |
