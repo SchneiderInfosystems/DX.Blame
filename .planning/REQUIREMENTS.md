@@ -10,9 +10,9 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Blame Core
 
 - [ ] **BLAME-01**: User sieht inline am Zeilenende den Autor und die relative Zeit der letzten Änderung
-- [ ] **BLAME-02**: Plugin erkennt automatisch ob das aktuelle Projekt in einem Git-Repository liegt
+- [x] **BLAME-02**: Plugin erkennt automatisch ob das aktuelle Projekt in einem Git-Repository liegt
 - [ ] **BLAME-03**: Blame wird beim Öffnen einer Datei automatisch asynchron ausgeführt
-- [ ] **BLAME-04**: Git blame wird per CLI (`git blame --porcelain`) in einem Hintergrund-Thread ausgeführt
+- [x] **BLAME-04**: Git blame wird per CLI (`git blame --porcelain`) in einem Hintergrund-Thread ausgeführt
 - [ ] **BLAME-05**: Blame-Ergebnisse werden pro Datei im Speicher gecacht
 - [ ] **BLAME-06**: Cache wird bei Datei-Save invalidiert und Blame automatisch neu ausgeführt
 
@@ -60,9 +60,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | BLAME-01 | Phase 3 | Pending |
-| BLAME-02 | Phase 2 | Pending |
+| BLAME-02 | Phase 2 | Complete |
 | BLAME-03 | Phase 2 | Pending |
-| BLAME-04 | Phase 2 | Pending |
+| BLAME-04 | Phase 2 | Complete |
 | BLAME-05 | Phase 2 | Pending |
 | BLAME-06 | Phase 2 | Pending |
 | TTIP-01 | Phase 4 | Pending |
