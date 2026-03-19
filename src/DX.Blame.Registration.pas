@@ -34,7 +34,9 @@ uses
   DX.Blame.Engine,
   DX.Blame.Renderer,
   DX.Blame.KeyBinding,
-  DX.Blame.Settings;
+  DX.Blame.Settings,
+  DX.Blame.Settings.Form,
+  DX.Blame.Navigation;
 
 var
   GWizardIndex: Integer = -1;
@@ -49,6 +51,7 @@ type
   TDXBlameMenuHandler = class
   public
     procedure ToggleBlame(Sender: TObject);
+    procedure ShowSettings(Sender: TObject);
   end;
 
 type
@@ -105,6 +108,11 @@ begin
   InvalidateAllEditors;
 end;
 
+procedure TDXBlameMenuHandler.ShowSettings(Sender: TObject);
+begin
+  TFormDXBlameSettings.ShowSettings;
+end;
+
 /// <summary>
 /// Creates the "DX Blame" submenu under the IDE Tools menu with
 /// "Enable Blame" (toggle) and "Settings..." (disabled placeholder).
@@ -150,11 +158,11 @@ begin
   LSubItem.OnClick := TDXBlameMenuHandler(GMenuHandler).ToggleBlame;
   GMenuParentItem.Add(LSubItem);
 
-  // Settings... -- disabled until settings dialog is implemented (Plan 03)
+  // Settings... -- opens configuration dialog
   LSubItem := TMenuItem.Create(GMenuParentItem);
   LSubItem.Caption := 'Settings...';
   LSubItem.Name := 'DXBlameSettingsItem';
-  LSubItem.Enabled := False;
+  LSubItem.OnClick := TDXBlameMenuHandler(GMenuHandler).ShowSettings;
   GMenuParentItem.Add(LSubItem);
 
   // Add as child of the Tools menu, not next to it
@@ -218,6 +226,9 @@ begin
   // Register renderer and keyboard binding for inline blame display
   RegisterRenderer;
   RegisterKeyBinding;
+
+  // Attach "Previous Revision" item to the editor context menu
+  AttachContextMenu;
 end;
 
 initialization
@@ -236,24 +247,27 @@ initialization
 
 finalization
   // Reverse-order cleanup to prevent access violations on BPL unload:
-  // 1. Stop keyboard binding (must stop before renderer to avoid toggle during unload)
+  // 1. Detach context menu (must happen before any other cleanup)
+  DetachContextMenu;
+
+  // 2. Stop keyboard binding (must stop before renderer to avoid toggle during unload)
   UnregisterKeyBinding;
 
-  // 2. Stop renderer (must stop painting before notifiers are removed)
+  // 3. Stop renderer (must stop painting before notifiers are removed)
   UnregisterRenderer;
 
-  // 3. Remove IDE notifiers (notifiers must stop before UI cleanup)
+  // 4. Remove IDE notifiers (notifiers must stop before UI cleanup)
   UnregisterIDENotifiers;
 
-  // 4. Remove UI elements (menu items and handler)
+  // 5. Remove UI elements (menu items and handler)
   RemoveToolsMenu;
 
-  // 5. Remove wizard registration
+  // 6. Remove wizard registration
   if GWizardIndex >= 0 then
     if Assigned(BorlandIDEServices) then
       (BorlandIDEServices as IOTAWizardServices).RemoveWizard(GWizardIndex);
 
-  // 6. Remove about box entry last
+  // 7. Remove about box entry last
   if GAboutPluginIndex >= 0 then
     if Assigned(BorlandIDEServices) then
       (BorlandIDEServices as IOTAAboutBoxServices).RemovePluginInfo(GAboutPluginIndex);

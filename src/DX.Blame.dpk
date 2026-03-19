@@ -47,6 +47,8 @@ contains
   DX.Blame.Formatter in 'DX.Blame.Formatter.pas',
   DX.Blame.Renderer in 'DX.Blame.Renderer.pas',
   DX.Blame.KeyBinding in 'DX.Blame.KeyBinding.pas',
+  DX.Blame.Navigation in 'DX.Blame.Navigation.pas',
+  DX.Blame.Settings.Form in 'DX.Blame.Settings.Form.pas' {FormDXBlameSettings},
   DX.Blame.Engine in 'DX.Blame.Engine.pas',
   DX.Blame.IDE.Notifier in 'DX.Blame.IDE.Notifier.pas',
   DX.Blame.Registration in 'DX.Blame.Registration.pas';

@@ -237,17 +237,17 @@ end;
 /// </summary>
 function FindEditorPopupMenu: TPopupMenu;
 var
-  LEditorServices: IOTAEditorServices;
+  LNTAServices: INTAEditorServices;
   LEditWindow: INTAEditWindow;
   LForm: TCustomForm;
   LComponent: TComponent;
 begin
   Result := nil;
 
-  if not Supports(BorlandIDEServices, IOTAEditorServices, LEditorServices) then
+  if not Supports(BorlandIDEServices, INTAEditorServices, LNTAServices) then
     Exit;
 
-  LEditWindow := LEditorServices.TopEditWindow;
+  LEditWindow := LNTAServices.TopEditWindow;
   if LEditWindow = nil then
     Exit;
 
