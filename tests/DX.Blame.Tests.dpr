@@ -22,7 +22,8 @@ uses
   DUnitX.Loggers.Console,
   DUnitX.MemoryLeakMonitor.Default,
   DX.Blame.Tests.Version in 'DX.Blame.Tests.Version.pas',
-  DX.Blame.Tests.Git.Blame in 'DX.Blame.Tests.Git.Blame.pas';
+  DX.Blame.Tests.Git.Blame in 'DX.Blame.Tests.Git.Blame.pas',
+  DX.Blame.Tests.Cache in 'DX.Blame.Tests.Cache.pas';
 
 var
   LRunner: ITestRunner;
