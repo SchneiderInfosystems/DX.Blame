@@ -90,6 +90,7 @@
         <DCCReference Include="DX.Blame.Tests.Version.pas"/>
         <DCCReference Include="DX.Blame.Tests.Git.Blame.pas"/>
         <DCCReference Include="DX.Blame.Tests.Cache.pas"/>
+        <DCCReference Include="DX.Blame.Tests.Git.Discovery.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
