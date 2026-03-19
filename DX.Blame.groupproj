@@ -6,6 +6,9 @@
         <Projects Include="src\DX.Blame.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="tests\DX.Blame.Tests.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -23,13 +26,22 @@
     <Target Name="DX_Blame:Make">
         <MSBuild Projects="src\DX.Blame.dproj" Targets="Make"/>
     </Target>
+    <Target Name="DX_Blame_Tests">
+        <MSBuild Projects="tests\DX.Blame.Tests.dproj"/>
+    </Target>
+    <Target Name="DX_Blame_Tests:Clean">
+        <MSBuild Projects="tests\DX.Blame.Tests.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="DX_Blame_Tests:Make">
+        <MSBuild Projects="tests\DX.Blame.Tests.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="DX_Blame"/>
+        <CallTarget Targets="DX_Blame;DX_Blame_Tests"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="DX_Blame:Clean"/>
+        <CallTarget Targets="DX_Blame:Clean;DX_Blame_Tests:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="DX_Blame:Make"/>
+        <CallTarget Targets="DX_Blame:Make;DX_Blame_Tests:Make"/>
     </Target>
 </Project>
