@@ -66,7 +66,7 @@ var
   LValue: Integer;
 begin
   LParts := cDXBlameVersion.Split(['.']);
-  Assert.AreEqual(4, Length(LParts), 'Version must have four dot-separated parts');
+  Assert.AreEqual(Integer(4), Integer(Length(LParts)), 'Version must have four dot-separated parts');
   for LPart in LParts do
     Assert.IsTrue(TryStrToInt(LPart, LValue), 'Each part must be a valid integer: ' + LPart);
 end;
