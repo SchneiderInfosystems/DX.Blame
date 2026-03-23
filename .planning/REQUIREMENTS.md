@@ -9,9 +9,9 @@ Requirements for Mercurial support milestone. Each maps to roadmap phases.
 
 ### VCS Abstraction
 
-- [ ] **VCSA-01**: IVCSProvider interface defines blame, commit detail, diff, file-at-revision, and discovery operations
-- [ ] **VCSA-02**: Shared VCS-neutral types (TBlameLineInfo, TBlameData, TCommitDetail) in DX.Blame.VCS.Types
-- [ ] **VCSA-03**: Shared TVCSProcess base class extracted from TGitProcess for DRY CLI execution
+- [x] **VCSA-01**: IVCSProvider interface defines blame, commit detail, diff, file-at-revision, and discovery operations
+- [x] **VCSA-02**: Shared VCS-neutral types (TBlameLineInfo, TBlameData, TCommitDetail) in DX.Blame.VCS.Types
+- [x] **VCSA-03**: Shared TVCSProcess base class extracted from TGitProcess for DRY CLI execution
 - [ ] **VCSA-04**: TGitProvider wraps existing Git units behind IVCSProvider interface
 - [ ] **VCSA-05**: Engine dispatches all VCS operations through IVCSProvider (no direct Git calls)
 
@@ -63,9 +63,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| VCSA-01 | Phase 6 | Pending |
-| VCSA-02 | Phase 6 | Pending |
-| VCSA-03 | Phase 6 | Pending |
+| VCSA-01 | Phase 6 | Complete |
+| VCSA-02 | Phase 6 | Complete |
+| VCSA-03 | Phase 6 | Complete |
 | VCSA-04 | Phase 6 | Pending |
 | VCSA-05 | Phase 7 | Pending |
 | HGB-01 | Phase 9 | Pending |
