@@ -45,6 +45,8 @@ contains
   DX.Blame.Cache in 'DX.Blame.Cache.pas',
   DX.Blame.Settings in 'DX.Blame.Settings.pas',
   DX.Blame.Formatter in 'DX.Blame.Formatter.pas',
+  DX.Blame.CommitDetail in 'DX.Blame.CommitDetail.pas',
+  DX.Blame.Popup in 'DX.Blame.Popup.pas',
   DX.Blame.Renderer in 'DX.Blame.Renderer.pas',
   DX.Blame.KeyBinding in 'DX.Blame.KeyBinding.pas',
   DX.Blame.Navigation in 'DX.Blame.Navigation.pas',
