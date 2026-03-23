@@ -29,14 +29,28 @@ Der Entwickler sieht auf einen Blick, wer eine Codezeile zuletzt geändert hat u
 
 ### Active
 
-(None — next milestone requirements to be defined via `/gsd:new-milestone`)
+- [ ] VCS abstraction layer (interface-based, Git and Hg backends)
+- [ ] Full Mercurial blame parity (annotations, commit details, diffs)
+- [ ] Support both hg CLI and TortoiseHg (thg)
+- [ ] Auto-detection of .git / .hg in project directory
+- [ ] VCS preference prompt when both Git and Hg are present (remember per project)
+- [ ] Settings dialog updated for VCS preference
+
+## Current Milestone: v1.1 Mercurial Support
+
+**Goal:** Add full Mercurial blame support with VCS abstraction, achieving feature parity with Git.
+
+**Target features:**
+- VCS abstraction layer with interface-based backends
+- Mercurial blame, commit details, and diff via hg/thg CLI
+- Auto-detection and user-prompted VCS preference when both are present
 
 ### Out of Scope
 
 - libgit2 native Bindings — unnötige Komplexität, git CLI ist zuverlässiger und einfacher
 - Blame für nicht-gespeicherte Änderungen — nur committed/staged Code
 - Git History Browser — nur Blame, kein vollständiger Git-Client
-- Andere VCS (SVN, Mercurial) — nur Git
+- Andere VCS (SVN) — nur Git und Mercurial
 - Real-time Blame bei jedem Tastendruck — Performance-Killer, sinnlos für uncommitted Änderungen
 
 ## Context
@@ -73,4 +87,4 @@ Architecture: OTA plugin with async blame engine, thread-safe cache, INTACodeEdi
 | OnBlameToggled callback pattern | Break circular dependency KeyBinding ↔ Registration | ✓ Good — clean decoupling via TProc |
 
 ---
-*Last updated: 2026-03-23 after v1.0 milestone*
+*Last updated: 2026-03-23 after v1.1 milestone start*
