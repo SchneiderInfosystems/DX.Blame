@@ -135,6 +135,8 @@ var
   GAnnotationXByRow: TDictionary<Integer, Integer>;
   // Maps paint rect top Y to logical line number
   GLineByRow: TDictionary<Integer, Integer>;
+  // Maps paint rect top Y to hash text pixel width (0 for uncommitted)
+  GHashWidthByRow: TDictionary<Integer, Integer>;
   // Cell height from the last paint cycle
   GCellHeight: Integer = 0;
   // Editor TWinControl from the last paint cycle
@@ -182,6 +184,8 @@ begin
     GAnnotationXByRow.Clear;
   if GLineByRow <> nil then
     GLineByRow.Clear;
+  if GHashWidthByRow <> nil then
+    GHashWidthByRow.Clear;
 
   // Hide popup if editor changed (switched tabs)
   if (GLastPaintEditor <> nil) and (GLastPaintEditor <> Editor) then
@@ -325,13 +329,18 @@ begin
       LCanvas.Font.Style := [fsUnderline, fsItalic];
       LCanvas.TextOut(LAnnotationX, Rect.Top, LHashText);
       LHashWidth := LCanvas.TextWidth(LHashText);
+      // Store hash width for click hit-testing
+      if GHashWidthByRow <> nil then
+        GHashWidthByRow.AddOrSetValue(Rect.Top, LHashWidth);
       // Draw remaining text with italic only
       LCanvas.Font.Style := [fsItalic];
       LCanvas.TextOut(LAnnotationX + LHashWidth, Rect.Top, LRestText);
     end
     else
     begin
-      // Uncommitted lines: plain italic, no underline
+      // Uncommitted lines: plain italic, no underline, not clickable
+      if GHashWidthByRow <> nil then
+        GHashWidthByRow.AddOrSetValue(Rect.Top, 0);
       LCanvas.TextOut(LAnnotationX, Rect.Top, LText);
     end;
   finally
@@ -452,8 +461,14 @@ begin
   if not LFound then
     Exit;
 
-  // Check if click is in annotation area
+  // Check if click is on the underlined hash region only
   if X < LAnnotationX then
+    Exit;
+  if (GHashWidthByRow = nil) or not GHashWidthByRow.ContainsKey(LRowTop) then
+    Exit;
+  if GHashWidthByRow[LRowTop] = 0 then
+    Exit; // uncommitted line, not clickable
+  if X >= LAnnotationX + GHashWidthByRow[LRowTop] then
     Exit;
 
   // Get blame data for the clicked line
@@ -535,6 +550,8 @@ begin
     GAnnotationXByRow := TDictionary<Integer, Integer>.Create;
   if GLineByRow = nil then
     GLineByRow := TDictionary<Integer, Integer>.Create;
+  if GHashWidthByRow = nil then
+    GHashWidthByRow := TDictionary<Integer, Integer>.Create;
 
   if Supports(BorlandIDEServices, INTACodeEditorServices, LServices) then
     GRendererIndex := LServices.AddEditorEventsNotifier(TDXBlameRenderer.Create);
@@ -558,5 +575,6 @@ finalization
   CleanupPopup;
   FreeAndNil(GAnnotationXByRow);
   FreeAndNil(GLineByRow);
+  FreeAndNil(GHashWidthByRow);
 
 end.
