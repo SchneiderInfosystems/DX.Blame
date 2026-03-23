@@ -19,7 +19,7 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Tooltip & Detail
 
 - [x] **TTIP-01**: User sieht bei Hover über die Blame-Annotation einen Tooltip mit Commit-Hash, Autor, Datum und voller Commit-Message
-- [ ] **TTIP-02**: User kann aus dem Tooltip heraus eine Commit-Detail-Ansicht mit vollem Diff öffnen
+- [x] **TTIP-02**: User kann aus dem Tooltip heraus eine Commit-Detail-Ansicht mit vollem Diff öffnen
 
 ### Konfiguration
 

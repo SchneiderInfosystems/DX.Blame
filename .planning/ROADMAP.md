@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Package Foundation** - Installable BPL with stable OTA lifecycle and clean unload (completed 2026-03-19)
 - [ ] **Phase 2: Blame Data Pipeline** - Async git blame execution, parsing, and thread-safe caching
 - [x] **Phase 3: Inline Rendering and UX** - Visible blame annotations with toggle, navigation, and configuration (completed 2026-03-23)
-- [ ] **Phase 4: Tooltip and Commit Detail** - Click-triggered popup with full commit info and modal diff detail view
+- [x] **Phase 4: Tooltip and Commit Detail** - Click-triggered popup with full commit info and modal diff detail view (completed 2026-03-23)
 
 ## Phase Details
 
@@ -77,8 +77,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — Commit detail cache, popup panel, click detection, and renderer wiring
-- [ ] 04-02-PLAN.md — Modal diff dialog with RTF coloring, scope toggle, size persistence, and tests
+- [x] 04-01-PLAN.md — Commit detail cache, popup panel, click detection, and renderer wiring
+- [x] 04-02-PLAN.md — Modal diff dialog with RTF coloring, scope toggle, size persistence, and tests
 
 ## Progress
 
@@ -90,4 +90,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | 1. Package Foundation | 2/2 | Complete   | 2026-03-19 |
 | 2. Blame Data Pipeline | 3/3 | Complete | 2026-03-19 |
 | 3. Inline Rendering and UX | 3/3 | Complete | 2026-03-23 |
-| 4. Tooltip and Commit Detail | 1/2 | In Progress|  |
+| 4. Tooltip and Commit Detail | 2/2 | Complete | 2026-03-23 |

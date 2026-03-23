@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 04-01 Blame Popup Panel
-last_updated: "2026-03-23T09:25:07Z"
-last_activity: 2026-03-23 -- Completed 04-01 Blame Popup Panel
+status: complete
+stopped_at: Completed 04-02 Modal Diff Dialog
+last_updated: "2026-03-23T09:47:12Z"
+last_activity: 2026-03-23 -- Completed 04-02 Modal Diff Dialog
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 10
-  completed_plans: 9
-  percent: 82
+  completed_plans: 10
+  percent: 100
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** Der Entwickler sieht auf einen Blick, wer eine Codezeile zuletzt geaendert hat und wann, ohne die IDE verlassen zu muessen.
-**Current focus:** Phase 4 -- Tooltip and Commit Detail (1 of 2 plans done)
+**Current focus:** All phases complete -- v1.0 milestone reached
 
 ## Current Position
 
 Phase: 4 of 4 (Tooltip and Commit Detail)
-Plan: 1 of 2 in current phase
-Status: In Progress
-Last activity: 2026-03-23 -- Completed 04-01 Blame Popup Panel
+Plan: 2 of 2 in current phase
+Status: Complete
+Last activity: 2026-03-23 -- Completed 04-02 Modal Diff Dialog
 
-Progress: [████████░░] 82%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -57,6 +57,7 @@ Progress: [████████░░] 82%
 | Phase 02 P03 | 12min | 2 tasks | 4 files |
 | Phase 03 P01 | 8min | 2 tasks | 7 files |
 | Phase 04 P01 | 6min | 2 tasks | 6 files |
+| Phase 04 P02 | 4min | 2 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -83,6 +84,9 @@ Recent decisions affecting current work:
 - 04-01: Unit-level dictionaries for annotation hit-test data (GAnnotationXByRow, GLineByRow) instead of instance fields on TNotifierObject
 - 04-01: TCommitDetailThread dedicated thread class following TBlameThread pattern instead of TProc callback
 - 04-01: Popup stored as unit-level var GPopup with CleanupPopup for Registration finalization
+- 04-02: FormatBlameAnnotation always prefixes 7-char short hash for committed lines, making annotations visually clickable
+- 04-02: Two-part rendering in PaintLine: hash drawn with [fsUnderline, fsItalic], rest with [fsItalic] only
+- 04-02: GetAnnotationHashLength returns 9 for committed (7 hash + 2 spaces), 0 for uncommitted
 
 ### Pending Todos
 
@@ -94,6 +98,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-23T09:25:07Z
-Stopped at: Completed 04-01-PLAN.md
-Resume file: .planning/phases/04-tooltip-and-commit-detail/04-01-SUMMARY.md
+Last session: 2026-03-23T09:47:12Z
+Stopped at: Completed 04-02-PLAN.md -- All phases complete
+Resume file: .planning/phases/04-tooltip-and-commit-detail/04-02-SUMMARY.md
