@@ -1,273 +1,268 @@
 # Technology Stack
 
-**Project:** DX.Blame (Git Blame IDE Plugin for Delphi)
-**Researched:** 2026-03-17
+**Project:** DX.Blame v1.1 (Mercurial Support Addition)
+**Researched:** 2026-03-23
 
-## Recommended Stack
+## Scope
 
-### Core Framework
+This document covers ONLY the stack additions needed for Mercurial (hg) support. The existing validated stack (OTA, INTACodeEditorEvents, Git CLI via CreateProcess) is unchanged and NOT re-documented here.
 
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| Delphi Open Tools API (OTA) | Delphi 11.3+ / 12 / 13 | IDE integration, editor access, notifiers | Official, supported API. No hacks needed. | HIGH |
-| INTACodeEditorEvents | Introduced 11.3 (Alexandria Update 3) | Editor painting (PaintLine, PaintText, PaintGutter) | Official painting API replacing deprecated INTAEditViewNotifier. Provides Canvas, TRect, line numbers, and full context. No runtime hooks needed. | HIGH |
-| INTACodeEditorServices | Introduced 11.3 | Register notifiers, query editor controls, request gutter columns | Entry point for all editor customization. AddEditorEventsNotifier registers the plugin. | HIGH |
-| IOTAEditorServices | All OTA versions | Access to editor views, top buffer, current file | Standard OTA service for file/buffer access. | HIGH |
-| IOTAKeyboardBinding | All OTA versions | Register toggle hotkey (e.g., Ctrl+Shift+B) | Standard OTA interface for keyboard shortcuts. Uses AddKeyBinding with TShortcut. | HIGH |
+## Recommended Stack Additions
 
-### Git CLI Integration
+### Mercurial CLI Integration
 
 | Technology | Version | Purpose | Why | Confidence |
 |------------|---------|---------|-----|------------|
-| CreateProcess + Pipes (Win32 API) | Windows API | Execute `git blame --porcelain` and capture stdout | Native Windows approach. No external dependencies. Pipes allow reading large output without deadlock. | HIGH |
-| TThread / TTask | RTL | Async git blame execution | Blame must not block the IDE main thread. TThread is simpler and more predictable than TTask for single background operations. | HIGH |
-| TThread.ForceQueue | RTL (Delphi 10.2+) | Marshal results back to main thread | Recommended by Embarcadero OTA docs for deferred operations from event handlers. Thread-safe main-thread dispatch. | HIGH |
+| `hg annotate` | Mercurial 5.0+ | Per-line blame data | Direct equivalent of `git blame`. Template support enables machine-parseable output. | HIGH |
+| `hg log` | Mercurial 5.0+ | Commit details (message, author, date) | Template engine provides structured output. `-r REV` for single revision queries. | HIGH |
+| `hg diff -c REV` | Mercurial 5.0+ | Commit diff (full and file-specific) | `-c REV` shows changes relative to parent, equivalent to `git show REV`. | HIGH |
+| `hg cat -r REV FILE` | Mercurial 5.0+ | File content at revision | Equivalent of `git show REV:FILE`. Used for revision navigation. | HIGH |
 
-### Supporting Libraries
+### TortoiseHg (Optional GUI Integration)
 
-| Library | Version | Purpose | When to Use | Confidence |
-|---------|---------|---------|-------------|------------|
-| DDetours (Mahdi Safsafi) | v2.2 (MPL-2.0) | Runtime method hooking | FALLBACK ONLY: If targeting Delphi 11.0-11.2 (before INTACodeEditorEvents). Not needed for 11.3+. | MEDIUM |
-| DGH OTA Template (David Hoyle) | Latest | Reference implementation for wizard registration, splash screen, about box | Study and adapt patterns, do not depend on as library. | MEDIUM |
+| Technology | Version | Purpose | Why | Confidence |
+|------------|---------|---------|-----|------------|
+| `thg annotate FILE` | TortoiseHg 6.5+ | Opens TortoiseHg annotate dialog | GUI alternative for users who prefer visual annotation. NOT used for data extraction. | HIGH |
+| `thg log FILE` | TortoiseHg 6.5+ | Opens TortoiseHg workbench filtered to file | Convenience launch from context menu. NOT used for data extraction. | HIGH |
 
-### OTA Interfaces Used (Complete Map)
+### VCS Abstraction Layer (New Delphi Units)
 
-| Interface | Purpose | Registration |
-|-----------|---------|-------------|
-| IOTAWizard | Main plugin entry point | Register in package initialization |
-| IOTAIDENotifier / IOTAIDENotifier80 | Project open/close, file notifications | BorlandIDEServices as IOTAServices |
-| IOTAEditorNotifier | Editor tab open/close/modify events | IOTAModule.AddNotifier |
-| INTACodeEditorEvents | Editor painting (PaintLine) and mouse events | INTACodeEditorServices.AddEditorEventsNotifier |
-| INTACodeEditorServices | Query editor controls, state, gutter | BorlandIDEServices as INTACodeEditorServices |
-| INTACodeEditorState | Visible lines, character-to-pixel conversion | Obtained from INTACodeEditorServices |
-| INTACodeEditorLineState | Per-line rectangles, line numbers, visibility | Passed in PaintLine context |
-| INTACodeEditorPaintContext | Canvas, rects, edit view during painting | Parameter to PaintLine/PaintText |
-| IOTAKeyboardBinding | Hotkey registration | IOTAKeyboardServices.AddKeyboardBinding |
-| IOTASplashScreenServices | Splash screen branding | Package initialization |
-| IOTAAboutBoxServices | About box entry | Package initialization |
-| IOTAModuleServices | Get current module/file path | BorlandIDEServices as IOTAModuleServices |
-| IOTASourceEditor | Access source buffer, file name | IOTAModule.GetModuleFileEditor |
+| Component | Purpose | Why |
+|-----------|---------|-----|
+| `IVCSProvider` interface | Abstract blame/log/diff/cat operations | Decouples engine from VCS-specific CLI commands. Enables Git and Hg backends behind same interface. |
+| `TVCSProcess` (renamed from `TGitProcess`) | Generic CreateProcess wrapper | Existing `TGitProcess` is already VCS-agnostic in implementation -- just rename and parameterize. |
+| `TVCSKind` enum | `vcsGit`, `vcsHg`, `vcsNone` | Discovery result type. Used throughout for branching logic. |
 
-## Key API: INTACodeEditorEvents Painting
+## Exact CLI Commands
 
-### PaintLine
+### 1. Blame / Annotate
 
-The central method for inline blame rendering. Called for each visible line during editor repaint.
-
-```pascal
-procedure PaintLine(
-  const Context: INTACodeEditorPaintContext;  // Canvas, TRect, EditView
-  const LineState: INTACodeEditorLineState;   // Line number, rects
-  const Stage: TCodeEditorLineStage;          // Before/after text painting
-  var AllowDefaultPainting: Boolean           // Suppress default if needed
-);
+**Command:**
+```
+hg annotate -c -u -d -n FILE
 ```
 
-**Usage for DX.Blame:** After default painting (post-text stage), draw blame annotation text to the right of the last character using `Context.Canvas.TextOut` within the line rect.
+**Flags explained:**
+- `-c` (--changeset): Output the 12-char short changeset hash instead of revision number. **Critical** -- we need the hash for commit detail lookups.
+- `-u` (--user): Output the author name.
+- `-d` (--date): Output the commit date.
+- `-n` (--number): Output the revision number. Must be explicitly included because `-c`, `-u`, and `-d` suppress it.
 
-### AllowedEvents / AllowedLineStages
-
-Performance optimization: Only subscribe to events the plugin needs.
-
-```pascal
-function AllowedEvents: TCodeEditorEvents;
-// Return: [cevPaintLineEvents, cevBeginEndPaintEvents]
-// Do NOT subscribe to mouse/scroll/gutter unless needed.
-
-function AllowedLineStages: TCodeEditorLineStages;
-// Return: [clsAfterText]  -- paint AFTER the code text is rendered
+**Default output format (human-readable, space-separated columns):**
+```
+ abc123def456 John Doe <john@example.com> Thu Jan 15 10:30:00 2026 +0100  42: line content here
 ```
 
-### Registration
+Each line follows: `<changeset> <user> <date> <revnum>: <content>`
 
-```pascal
-var
-  LServices: INTACodeEditorServices;
-  LNotifierIndex: Integer;
-begin
-  if Supports(BorlandIDEServices, INTACodeEditorServices, LServices) then
-    LNotifierIndex := LServices.AddEditorEventsNotifier(FCodeEditorNotifier);
-end;
+**Why NOT use `-T` (template) for annotate:**
+The template-based annotate (`hg annotate -T '{lines % ...}'`) is more complex to parse and less widely tested across Mercurial versions. The default column-based output with `-c -u -d` flags is stable, well-documented, and sufficient. The column format is consistent and parseable with simple string splitting at the colon delimiter.
+
+**Preferred alternative -- template-based (more reliable parsing):**
+```
+hg annotate -T "{lines % \"{node|short} {rev} {user|emailuser} {date|hgdate} {line}\"}" FILE
 ```
 
-## Git Blame Integration
-
-### Command
-
+**Template output format:**
 ```
-git blame --porcelain <filepath>
+abc123def456 42 john 1705312200 0 line content here
 ```
 
-The `--porcelain` format outputs machine-parseable blocks per line:
+- `{node|short}`: 12-char hex hash (equivalent to Git's short hash)
+- `{rev}`: Integer revision number
+- `{user|emailuser}`: Username portion only (strips email)
+- `{date|hgdate}`: Unix timestamp + timezone offset (e.g., `1705312200 -3600`)
+- `{line}`: Actual line content
 
+**Recommendation: Use template-based output.** The `{date|hgdate}` filter gives Unix timestamps identical to what `git blame --porcelain` provides (`author-time`), making the parser nearly identical. The `{node|short}` gives a consistent 12-char hash. This is the most reliable approach for machine parsing.
+
+**Final recommended command:**
 ```
-<40-char SHA> <orig-line> <final-line> [<num-lines>]
-author <name>
-author-mail <email>
-author-time <unix-timestamp>
-author-tz <timezone>
-committer <name>
-committer-mail <email>
-committer-time <unix-timestamp>
-committer-tz <timezone>
-summary <commit message first line>
-filename <path>
-	<actual line content prefixed with tab>
+hg annotate -T "{lines % \"{node} {rev} {user|emailuser} {date|hgdate}\t{line}\"}" FILE
 ```
 
-### Async Execution Pattern
+Using `{node}` (full 40-char hash) instead of `{node|short}` for consistency with Git's 40-char hashes. The TAB character (`\t`) before `{line}` provides an unambiguous delimiter between metadata and content -- same strategy as `git blame --porcelain` using TAB for content lines.
 
-```pascal
-TBlameThread = class(TThread)
-private
-  FFilePath: string;
-  FRepoRoot: string;
-  FOnComplete: TProc<TBlameData>;
-protected
-  procedure Execute; override;
-end;
+**Uncommitted lines:** Mercurial annotate does NOT show uncommitted working-directory changes. It only annotates committed content. This is different from `git blame` which shows uncommitted lines with the all-zero hash. For DX.Blame this is acceptable -- the existing Git behavior already marks uncommitted lines as "Not committed yet", and for Hg we simply will not have them (the annotation covers only committed state).
 
-procedure TBlameThread.Execute;
-var
-  LOutput: string;
-  LBlameData: TBlameData;
-begin
-  LOutput := RunGitCommand(FRepoRoot, 'blame --porcelain "' + FFilePath + '"');
-  LBlameData := TBlameParser.Parse(LOutput);
-  if not Terminated then
-    TThread.ForceQueue(nil,
-      procedure
-      begin
-        FOnComplete(LBlameData);
-      end);
-end;
+### 2. Commit Details (Full Message)
+
+**Command:**
+```
+hg log -r HASH -T "{node}\n{user}\n{date|hgdate}\n{desc}"
 ```
 
-### CreateProcess with Pipe Pattern
-
-```pascal
-function RunGitCommand(const AWorkDir, AArgs: string): string;
-var
-  LSA: TSecurityAttributes;
-  LReadPipe, LWritePipe: THandle;
-  LSI: TStartupInfo;
-  LPI: TProcessInformation;
-  LCmd: string;
-  LBytesRead: DWORD;
-  LBuffer: TBytes;
-begin
-  LSA.nLength := SizeOf(LSA);
-  LSA.bInheritHandle := True;
-  LSA.lpSecurityDescriptor := nil;
-
-  CreatePipe(LReadPipe, LWritePipe, @LSA, 0);
-  SetHandleInformation(LReadPipe, HANDLE_FLAG_INHERIT, 0);
-
-  ZeroMemory(@LSI, SizeOf(LSI));
-  LSI.cb := SizeOf(LSI);
-  LSI.dwFlags := STARTF_USESTDHANDLES or STARTF_USESHOWWINDOW;
-  LSI.hStdOutput := LWritePipe;
-  LSI.hStdError := LWritePipe;
-  LSI.wShowWindow := SW_HIDE;
-
-  LCmd := 'git ' + AArgs;
-  CreateProcess(nil, PChar(LCmd), nil, nil, True,
-    CREATE_NO_WINDOW, nil, PChar(AWorkDir), LSI, LPI);
-
-  CloseHandle(LWritePipe); // Must close write end so ReadFile returns on process exit
-
-  SetLength(LBuffer, 65536);
-  Result := '';
-  while ReadFile(LReadPipe, LBuffer[0], Length(LBuffer), LBytesRead, nil) and (LBytesRead > 0) do
-    Result := Result + TEncoding.UTF8.GetString(LBuffer, 0, LBytesRead);
-
-  CloseHandle(LReadPipe);
-  CloseHandle(LPI.hProcess);
-  CloseHandle(LPI.hThread);
-end;
+**Output format:**
+```
+abc123def456789...  (40-char node)
+John Doe <john@example.com>
+1705312200 -3600
+Full commit message
+possibly multi-line
 ```
 
-## Delphi Version Compatibility Strategy
+**Why this template:** Four fields separated by newlines. The first three are single-line, the description takes the remainder. Simple to parse with `Split([#10])` -- take lines [0..2] as metadata, join the rest as description.
 
-| Feature | Delphi 11.0-11.2 | Delphi 11.3+ | Delphi 12 | Delphi 13 |
-|---------|-------------------|---------------|-----------|-----------|
-| INTACodeEditorEvents | NOT available | Available | Available | Available |
-| INTAEditViewNotifier | Available (deprecated 11.3) | Available but deprecated | Deprecated | Deprecated |
-| IOTAKeyboardBinding | Available | Available | Available | Available |
-| TThread.ForceQueue | Available | Available | Available | Available |
-
-**Decision: Target Delphi 11.3+ minimum.**
-
-Rationale: INTACodeEditorEvents is the correct, official API for editor painting. Supporting 11.0-11.2 would require either the deprecated INTAEditViewNotifier or DDetours-based runtime hooks -- both approaches are fragile and add significant complexity. Delphi 11.3 was released in early 2023; expecting users to have at least 11.3 is reasonable for a new plugin in 2026.
-
-Use `{$IF CompilerVersion >= 35.1}` (Delphi 11.3 = compiler version 35.1) for any conditional compilation if needed.
-
-## Alternatives Considered
-
-| Category | Recommended | Alternative | Why Not |
-|----------|-------------|-------------|---------|
-| Editor painting | INTACodeEditorEvents (official) | DDetours + PaintLine hook | Hooks are fragile across IDE versions, can conflict with other plugins, and are undocumented. Official API is stable and supported. |
-| Editor painting (legacy) | INTACodeEditorEvents | INTAEditViewNotifier | Deprecated since 11.3. Will likely be removed in future versions. |
-| Git integration | git CLI via CreateProcess | libgit2 native bindings | Massive dependency, complex build setup, DLL distribution. git CLI is simpler and always matches user's git version. |
-| Git integration | CreateProcess + Pipes | ShellExecute | ShellExecute cannot capture stdout. CreateProcess with pipes is required for output capture. |
-| Async execution | TThread | TTask (PPL) | TTask is fine for fire-and-forget but TThread gives better control over cancellation and lifecycle for a long-running blame operation. |
-| Async execution | TThread | OmniThreadLibrary | External dependency. TThread from RTL is sufficient for single background operations. |
-| Package type | Design-time BPL | DLL Expert | Design-time package is the standard for IDE plugins. Simpler installation via Component > Install Packages. |
-| Caching | TDictionary in-memory | SQLite / file cache | Blame data is transient (valid only while file is open and unchanged). In-memory cache is simpler and sufficient. |
-
-## Installation
-
-No external packages required. Pure Delphi RTL + OTA.
-
+**Equivalent Git command it replaces:**
 ```
-Required units (all ship with Delphi):
-- ToolsAPI
-- ToolsAPI.Editor  (Delphi 11.3+)
-- System.Classes
-- System.SysUtils
-- System.Generics.Collections
-- System.Threading (if using TTask, optional)
-- Winapi.Windows
-- Vcl.Graphics
+git log -1 --format=%B HASH
 ```
 
-## Project Structure (per CLAUDE.md conventions)
+### 3. File-Specific Diff
 
+**Command:**
 ```
-DX.Blame/
-  src/
-    DX.Blame.dpk                    -- Design-time package
-    DX.Blame.Registration.pas       -- Register, wizard creation, splash screen
-    DX.Blame.Plugin.pas             -- Main plugin class (IOTAWizard)
-    DX.Blame.EditorNotifier.pas     -- INTACodeEditorEvents implementation
-    DX.Blame.GitBlame.pas           -- Git CLI execution, porcelain parser
-    DX.Blame.GitBlame.Types.pas     -- TBlameInfo, TBlameData records
-    DX.Blame.Cache.pas              -- Per-file blame cache (TDictionary)
-    DX.Blame.Painting.pas           -- Blame text rendering logic
-    DX.Blame.Settings.pas           -- Toggle state, display format, colors
-    DX.Blame.KeyBinding.pas         -- IOTAKeyboardBinding for toggle hotkey
-    DX.Blame.Utils.pas              -- Git repo detection, path utilities
-  tests/
-    DX.Blame.Tests.dproj            -- DUnitX tests (parser, cache logic)
-  build/
-    DelphiBuildDPROJ.ps1            -- Universal build script
-  docs/
-    -- Style guide, documentation
+hg diff -c HASH FILE
 ```
+
+**Flags explained:**
+- `-c HASH` (--change): Show changes introduced by this changeset (diff against parent). This is the Mercurial equivalent of `git show HASH -- FILE`.
+
+**Output format:** Standard unified diff format, identical to `git show` diff output. No special parsing changes needed.
+
+**Equivalent Git command it replaces:**
+```
+git show HASH -- "FILE"
+```
+
+### 4. Full Commit Diff
+
+**Command:**
+```
+hg diff -c HASH
+```
+
+Without a file argument, shows the full changeset diff. Equivalent to `git show HASH`.
+
+**Alternative with commit header:**
+```
+hg export HASH
+```
+
+`hg export` includes the commit message header (Author, Date, Subject) followed by the unified diff. This is more informative for the diff dialog and mirrors `git show` output more closely.
+
+**Recommendation: Use `hg export HASH`** because it includes commit metadata in the output header, matching what `git show` provides and what the diff dialog already displays.
+
+### 5. File Content at Revision (Navigation)
+
+**Command:**
+```
+hg cat -r HASH FILE
+```
+
+**Output:** Raw file content at that revision, written to stdout.
+
+**Equivalent Git command it replaces:**
+```
+git show HASH:FILE
+```
+
+### 6. Repository Root Detection
+
+**Command:**
+```
+hg root
+```
+
+**Output:** Single line with absolute path to repository root.
+
+**Equivalent Git command it replaces:**
+```
+git rev-parse --show-toplevel
+```
+
+### 7. Executable Discovery
+
+**Search order for `hg.exe`:**
+1. System PATH (`hg.exe`)
+2. `C:\Program Files\Mercurial\hg.exe`
+3. `C:\Program Files\TortoiseHg\hg.exe` (TortoiseHg bundles hg)
+4. `%LOCALAPPDATA%\Programs\TortoiseHg\hg.exe`
+
+**Search order for `thg.exe` (optional, GUI only):**
+1. System PATH (`thg.exe`)
+2. `C:\Program Files\TortoiseHg\thg.exe`
+3. `%LOCALAPPDATA%\Programs\TortoiseHg\thg.exe`
+
+**Important:** TortoiseHg ships its own bundled Mercurial. If `hg.exe` is not found in PATH but TortoiseHg is installed, `hg.exe` will be available in the TortoiseHg installation directory.
+
+### 8. Repository Detection
+
+**Filesystem check:** Walk parent directories looking for `.hg` directory (same pattern as `.git` detection).
+
+**Verification command:**
+```
+hg root
+```
+
+Run from candidate directory. Exit code 0 = valid Hg repo. Output = repo root path.
+
+## Command-to-Git Mapping Summary
+
+| Git Command | Mercurial Equivalent | Notes |
+|-------------|---------------------|-------|
+| `git blame --line-porcelain -- FILE` | `hg annotate -T "{lines % \"{node} {rev} ...\"}" FILE` | Template provides structured output |
+| `git log -1 --format=%B HASH` | `hg log -r HASH -T "{node}\n{user}\n{date\|hgdate}\n{desc}"` | Template for structured output |
+| `git show HASH -- FILE` | `hg diff -c HASH FILE` | `-c` = changes in changeset |
+| `git show HASH` | `hg export HASH` | Includes commit header + diff |
+| `git show HASH:FILE` | `hg cat -r HASH FILE` | Raw file content at revision |
+| `git rev-parse --show-toplevel` | `hg root` | Repo root path |
+
+## What NOT to Add
+
+| Rejected Approach | Why |
+|-------------------|-----|
+| libhg / Python bindings | Mercurial is Python-based; calling Python from Delphi adds massive complexity. CLI is simpler, faster, no dependency management. |
+| `hg serve` (built-in web server) | Overkill for blame data. HTTP overhead, port management, process lifecycle -- all unnecessary. |
+| Direct `.hg` directory parsing | Internal format is undocumented and version-dependent. CLI is the stable interface. |
+| `thg` for data extraction | TortoiseHg is a GUI tool. Its commands launch windows, not stdout streams. Only use for "open in TortoiseHg" user actions. |
+| `hg annotate --json` | JSON output is NOT a built-in option for annotate. Template output is the correct approach. |
+
+## Integration with Existing Shell Execution
+
+The existing `TGitProcess` class is already a generic CreateProcess wrapper. The only Git-specific aspect is the constructor parameter name (`AGitPath`). For v1.1:
+
+1. **Rename to `TVCSProcess`** (or keep `TGitProcess` and create `THgProcess` as a thin alias -- but renaming is cleaner).
+2. The `Execute` / `ExecuteAsync` / `CancelProcess` methods work identically for `hg.exe`.
+3. The pipe-based stdout capture, `CREATE_NO_WINDOW`, `SW_HIDE`, and handle cleanup are all VCS-agnostic.
+4. The 5-second `WaitForSingleObject` timeout is appropriate for Mercurial as well.
+
+**Zero changes needed to the process execution logic itself.** Only the path parameter and command arguments change.
+
+## Encoding Considerations
+
+- Mercurial outputs UTF-8 by default on modern versions (5.0+).
+- The existing `TEncoding.UTF8.GetString` in `TGitProcess.ExecuteAsync` works for both Git and Hg output.
+- Template output with `{date|hgdate}` uses ASCII-only characters (digits and minus sign), so no encoding issues.
+
+## Mercurial Version Compatibility
+
+| Feature | Minimum Version | Notes |
+|---------|----------------|-------|
+| `hg annotate -T` (template) | Mercurial 3.8+ | Template support for annotate added in 3.8 |
+| `{date\|hgdate}` filter | Mercurial 1.0+ | Available since early versions |
+| `{node}` keyword | Mercurial 1.0+ | Core template keyword |
+| `hg diff -c` | Mercurial 1.4+ | Change flag for single-changeset diff |
+| `hg export` | Mercurial 0.9+ | Core command |
+| `hg cat -r` | Mercurial 0.9+ | Core command |
+| `hg root` | Mercurial 0.9+ | Core command |
+
+**Target minimum: Mercurial 3.8+** for template-based annotate. This covers all actively maintained installations. The latest stable Mercurial is 6.8 (2024).
+
+## TortoiseHg Version Notes
+
+- TortoiseHg 6.9 released 2025-01-16 (latest as of research date)
+- TortoiseHg bundles its own Mercurial installation
+- `thg annotate FILE` opens the annotate dialog (GUI)
+- `thg log FILE` opens the workbench filtered to file (GUI)
+- These are fire-and-forget GUI launches, not data extraction commands
 
 ## Sources
 
-- [Embarcadero: ToolsAPI Support for the Code Editor (Athens)](https://docwiki.embarcadero.com/RADStudio/Athens/en/ToolsAPI_Support_for_the_Code_Editor) -- Official docs for INTACodeEditorEvents, introduced 11.3. HIGH confidence.
-- [Embarcadero: INTACodeEditorEvents.BeginPaint](https://docwiki.embarcadero.com/Libraries/Athens/en/ToolsAPI.Editor.INTACodeEditorEvents.BeginPaint) -- Official method reference. HIGH confidence.
-- [Embarcadero: INTACodeEditorEvents.PaintText](https://docwiki.embarcadero.com/Libraries/Athens/en/ToolsAPI.Editor.INTACodeEditorEvents.PaintText) -- Official method reference. HIGH confidence.
-- [Embarcadero Blog: Ultimate Open Tools APIs for Decorating Your IDE](https://blogs.embarcadero.com/quickly-learn-about-the-ultimate-open-tools-apis-for-decorating-your-delphi-c-builder-ide/) -- Overview with usage examples. HIGH confidence.
-- [Embarcadero OTAPI-Docs (GitHub)](https://github.com/Embarcadero/OTAPI-Docs) -- Community-maintained OTA documentation. MEDIUM confidence.
-- [DGH2112 OTA Template (GitHub)](https://github.com/DGH2112/OTA-Template) -- Reference implementation for wizard structure. MEDIUM confidence.
-- [Dave Hoyle: OTA Blog Series](https://www.davidghoyle.co.uk/WordPress/?page_id=667) -- Comprehensive OTA tutorials including notifiers, about boxes, splash screens. MEDIUM confidence.
-- [GExperts OTA FAQ](https://www.gexperts.org/open-tools-api-faq/) -- Common OTA questions and solutions. MEDIUM confidence.
-- [Parnassus: Mysteries of IDE Plugins Part 1](https://parnassus.co/mysteries-of-ide-plugins-painting-in-the-code-editor-part-1/) -- Documents the OLD (pre-11.3) hook-based approach. Useful for understanding history, NOT recommended for new code. MEDIUM confidence.
-- [Parnassus: Mysteries of IDE Plugins Part 2](https://parnassus.co/mysteries-ide-plugins-painting-code-editor-part-2/) -- PaintLine hook parameters. Historical reference only. MEDIUM confidence.
-- [DDetours (GitHub)](https://github.com/MahdiSafsafi/DDetours) -- Runtime hooking library. MPL-2.0. Last updated 2020. Only needed for pre-11.3 support. LOW confidence for Delphi 13 compatibility.
-- [IdeasAwakened: CreateProcess and capture output](https://ideasawakened.com/post/use-createprocess-and-capture-the-output-in-windows) -- Delphi CreateProcess pattern with pipes. MEDIUM confidence.
-- [Git blame documentation](https://git-scm.com/docs/git-blame) -- Official porcelain format specification. HIGH confidence.
-- [Cary Jensen: Creating Editor Key Bindings](http://caryjensen.blogspot.com/2010/06/creating-editor-key-bindings-in-delphi.html) -- IOTAKeyboardBinding tutorial. MEDIUM confidence.
+- [hg annotate documentation](https://repo.mercurial-scm.org/hg/help/annotate) - Official command reference (HIGH confidence)
+- [hg log documentation](https://repo.mercurial-scm.org/hg/help/log) - Official command reference (HIGH confidence)
+- [Mercurial templates reference](https://repo.mercurial-scm.org/hg/help/templates) - Official template keywords and filters (HIGH confidence)
+- [hg diff documentation](https://repo.mercurial-scm.org/hg/help/diff) - Official diff command reference (HIGH confidence)
+- [Replicating git show in Mercurial](https://slaptijack.com/software/git-show-in-hg.html) - `hg export` as git show equivalent (MEDIUM confidence)
+- [TortoiseHg documentation](https://tortoisehg.readthedocs.io/en/latest/) - thg command reference (HIGH confidence)
+- [Mercurial template customization](https://book.mercurial-scm.org/read/template.html) - Template syntax and filters (HIGH confidence)

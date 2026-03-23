@@ -1,191 +1,189 @@
 # Project Research Summary
 
-**Project:** DX.Blame (Git Blame IDE Plugin for Delphi)
-**Domain:** Delphi IDE Plugin — Git Blame Integration
-**Researched:** 2026-03-17
+**Project:** DX.Blame v1.1 — Mercurial Support Addition
+**Domain:** Delphi IDE Plugin — VCS blame annotations (Mercurial extension to existing Git-only plugin)
+**Researched:** 2026-03-23
 **Confidence:** HIGH
 
 ## Executive Summary
 
-DX.Blame is a Delphi IDE plugin that renders inline git blame annotations directly in the code editor — similar to GitLens for VS Code. The recommended approach is a clean, dependency-free implementation using Delphi's official Open Tools API (OTA) with INTACodeEditorEvents (introduced in Delphi 11.3) for painting, plus native Win32 CreateProcess/pipe patterns for executing git blame asynchronously. No external libraries are required. The entire stack ships with Delphi itself, making installation trivial: one design-time BPL registered via Component > Install Packages.
+DX.Blame v1.1 is a targeted feature extension to an existing, validated v1.0 codebase. The task is not to build a new product but to introduce a VCS abstraction layer that enables Mercurial blame support alongside the existing Git implementation. The recommended approach is interface-based: introduce `IVCSProvider`, extract the four Git-specific units behind it, implement a parallel set of Mercurial units, and wire the engine to dispatch through the interface. Seven units require modification, seven new units are needed, and seven existing units remain entirely unchanged.
 
-The architecture decomposes clearly into five layers: the OTA event layer (notifiers that react to IDE events), the blame engine (git execution, porcelain parsing, cache management), the rendering layer (PaintLine callback doing O(1) cache lookups and Canvas.TextOut), the async threading layer (TThread + ForceQueue for non-blocking git execution), and settings/key binding. The data flow is well-understood and linear: file open triggers async git blame, parsed results populate an in-memory TDictionary cache, and PaintLine reads from the cache on every editor repaint.
+The CLI integration strategy is direct and well-proven. Mercurial's template engine (`-T`) produces machine-parseable output for `hg annotate`, giving structured per-line blame data equivalent to what Git's `--line-porcelain` provides. All other operations (`hg log`, `hg diff -c`, `hg cat`, `hg root`) map cleanly to their Git counterparts. The existing `TGitProcess` (CreateProcess wrapper) is already functionally generic and can be refactored into a shared `TVCSProcess` base class with zero changes to its pipe capture, encoding, or cancellation logic. TortoiseHg ships its own `hg.exe`, so executable discovery must check TortoiseHg installation paths in addition to the system PATH.
 
-The two overriding risks are IDE stability and editor performance. Leaked OTA notifiers cause delayed access violations in the IDE — every notifier index must be tracked and removed on plugin unload. Heavy computation in PaintLine causes visible editor lag — the callback must be kept to a single O(1) lookup plus a TextOut call. Both risks have well-established mitigations documented by the OTA community. A third risk — CreateProcess pipe deadlock on large files — is equally well-documented and straightforward to avoid by reading the pipe while the process runs rather than after it exits.
+The primary risk is the Git-to-abstraction refactoring step: extracting `IVCSProvider` from the existing concrete Git code touches working production logic. This must be done incrementally, with the Git backend verified through the new interface before any Mercurial code is introduced. Secondary risks are parser correctness (Mercurial's annotate output is structurally different from Git's porcelain) and the dual-VCS detection edge case (repos that contain both `.git` and `.hg`). Both are well-understood and preventable with unit tests and a per-project preference store.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The plugin requires no external dependencies beyond standard Delphi RTL and the OTA units that ship with the IDE. INTACodeEditorEvents (ToolsAPI.Editor unit, Delphi 11.3+) is the correct, officially supported API for editor painting — it replaces the deprecated INTAEditViewNotifier and eliminates any need for runtime hooking via DDetours. Delphi 11.3 is the minimum supported version; targeting 11.3/12/13 covers the broad active user base while using only stable, forward-compatible interfaces.
+The existing CreateProcess-based execution model requires no changes. The only stack additions are: (1) `hg.exe` (Mercurial 3.8+ for template annotate support, 4.6+ recommended), found via PATH then TortoiseHg installation directories; and (2) optional `thg.exe` for GUI-only "Open in TortoiseHg" actions. No new Delphi libraries are needed — all Mercurial operations are CLI-driven with the same pipe-based stdout capture already in use.
 
 **Core technologies:**
-- **INTACodeEditorEvents** (OTA, Delphi 11.3+): Editor painting via PaintLine — the only officially supported way to draw in the code editor
-- **INTACodeEditorServices** (OTA): Notifier registration and editor state queries
-- **IOTAKeyboardBinding** (OTA): Toggle hotkey registration without polling
-- **IOTAWizard** (OTA): Plugin entry point and lifecycle management
-- **CreateProcess + anonymous pipes** (Win32 API): Capture git blame stdout without external dependencies; read pipe while process runs to avoid deadlock
-- **TThread + TThread.ForceQueue** (RTL): Async git execution with safe main-thread result delivery; ForceQueue is explicitly recommended by Embarcadero for OTA background operations
-- **TDictionary + TCriticalSection** (RTL): Thread-safe in-memory per-file blame cache with normalized path keys
+- `hg annotate -T "{lines % ...}"`: Per-line blame data — template system produces structured, reliably parseable output using `{node}`, `{user|emailuser}`, `{date|hgdate}`, `{lineno}`, `{line}` keywords.
+- `hg log -r HASH -T "{node}\n{user}\n{date|hgdate}\n{desc}"`: Commit details — four-field newline-separated format, directly equivalent to `git log -1 --format=%B`.
+- `hg diff -c HASH FILE` / `hg export HASH`: File and full commit diffs — unified diff format, identical to Git output structure.
+- `hg cat -r HASH FILE`: File content at revision — equivalent of `git show HASH:FILE`.
+- `hg root`: Repository root detection — equivalent of `git rev-parse --show-toplevel`.
+- `TVCSProcess` (refactored from `TGitProcess`): Generic CreateProcess wrapper — zero logic changes, only constructor parameterization.
 
-**Version decision:** Delphi 11.3+ minimum. INTACodeEditorEvents is the correct API; supporting older versions would require deprecated or hook-based approaches that are fragile and unsupported.
+**Critical version requirement:** Mercurial 3.8+ for `{lines % "..."}` template operator in annotate. Target 4.6+ for full template reliability.
 
 ### Expected Features
 
-The feature research is anchored on GitLens (VS Code) as the established reference for what users expect from IDE blame integration. The feature dependency chain runs strictly from git repo detection through blame execution, parsing, and caching, then to rendering and UX controls.
+The feature scope is feature-parity with Git blame, plus a small set of Mercurial-specific enhancements.
 
 **Must have (table stakes):**
-- Inline blame annotation at end of current line — author + relative time (e.g., "John Doe, 3 months ago")
-- Automatic blame load on file open via IOTAEditorNotifier.ViewActivated
-- Cache invalidation and re-blame on file save
-- Non-blocking execution — TThread + CreateProcess; the IDE must never freeze
-- Toggle on/off via menu item and keyboard shortcut (IOTAKeyboardBinding)
-- Git repo detection by walking parent directories for .git folder
-- Delphi 11.3 / 12 / 13 support
+- Inline blame annotations via `hg annotate` — core feature parity; users switching from Git blame expect identical UX.
+- Click-popup commit details (hash, author, date, message) — existing UX pattern users expect.
+- RTF diff dialog (file-scoped and full commit) — existing UX pattern users expect.
+- Revision navigation via `hg cat` — existing UX pattern users expect.
+- VCS auto-detection (`.hg` directory walk + `hg root` verification) — transparent, no user configuration required.
+- `hg.exe` discovery (PATH + TortoiseHg paths) — plugin must find the executable automatically.
+- Cache integration — `TBlameData`/`TBlameLineInfo` are already VCS-neutral; no cache changes needed.
 
-**Should have (competitive differentiators):**
-- Hover tooltip showing full commit info (hash, message, date) without leaving the editor
-- Configurable display format (show/hide author, date format, max length)
-- Configurable blame text color to match IDE theme (light/dark adaptive)
-- Commit detail view from tooltip (git show output in modal form)
+**Should have (differentiators):**
+- TortoiseHg context menu integration ("Open in TortoiseHg Annotate/Log") — value for the majority of Mercurial-on-Windows users.
+- Per-project VCS preference with persistence — required for dual-VCS repos; stored in settings INI keyed by project path.
+- Settings dialog VCS dropdown (Auto / Git / Mercurial) — explicit override for edge cases.
+- Dual-VCS status indicator in IDE Messages — transparency for the user about which backend is active.
 
 **Defer (v2+):**
-- Blame for selection range (git blame -L)
-- Navigate to previous revision (time-travel through file history)
-- External branch-switch detection — stale cache on branch change accepted as v1 known limitation
-
-**Explicit anti-features:** No gutter column (invasive, conflicts with other plugins), no libgit2 dependency, no real-time blame on keystrokes, no SVN/Mercurial support.
+- Statusbar display mode — orthogonal to VCS abstraction; already tracked as future feature.
+- Annotation X-position configuration — orthogonal; already tracked as future feature.
+- Further VCS backends (SVN, etc.) — interface is extensible but out of scope for v1.1.
 
 ### Architecture Approach
 
-The architecture is a five-layer pipeline with clear component boundaries and no circular dependencies. The OTA event layer receives IDE signals and delegates to the blame engine; the blame engine orchestrates git execution, parsing, and cache management; the rendering layer reads from cache and draws; the threading layer keeps git off the main thread; and settings provide shared state. All inter-layer communication flows downward or through the cache as a shared data store protected by a TCriticalSection.
+The architecture follows a Strategy pattern: `IVCSProvider` is the interface, `TGitProvider` and `THgProvider` are concrete implementations, and `DX.Blame.VCS.Discovery` is the factory that selects and instantiates the correct provider based on directory structure and user preference. `DX.Blame.Engine` holds an `IVCSProvider` reference and dispatches all VCS operations through it. The 14 units outside the four Git-specific ones are already VCS-neutral in logic and require only a `uses` clause rename from `DX.Blame.Git.Types` to `DX.Blame.VCS.Types`.
 
 **Major components:**
-1. **Plugin / Registration** (`DX.Blame.Plugin`, `DX.Blame.Registration`) — IOTAWizard lifecycle, splash screen, about box, service registration on package init/finit
-2. **EditorNotifier** (`DX.Blame.EditorNotifier`) — INTACodeEditorEvents implementation; reacts to file open/save/close, drives PaintLine callbacks
-3. **BlameEngine** (`DX.Blame.GitBlame`) — orchestrates repo detection, CreateProcess execution, porcelain parsing into TBlameData records
-4. **BlameCache** (`DX.Blame.Cache`) — TDictionary protected by TCriticalSection; per-file storage with path-normalized keys
-5. **Renderer** (`DX.Blame.Painting`) — formats blame text, paints on canvas; called only from PaintLine with a guaranteed O(1) cache access
-6. **Threading layer** (`TBlameThread` inside `DX.Blame.GitBlame`) — TThread subclass; delivers results to main thread via TThread.ForceQueue
-7. **Settings + KeyBinding** (`DX.Blame.Settings`, `DX.Blame.KeyBinding`) — toggle state, display preferences, IOTAKeyboardBinding registration
-8. **Utils** (`DX.Blame.Utils`) — git root detection, path normalization with SameFileName-compatible keys
+1. `DX.Blame.VCS.Types` — VCS-neutral shared data contracts (`TBlameLineInfo`, `TBlameData`); mechanical rename of existing `DX.Blame.Git.Types`, zero structural changes to the types themselves.
+2. `DX.Blame.VCS.Provider` — `IVCSProvider` interface definition; the central abstraction contract with 10 methods covering blame, commit details, diff, file-at-revision, and discovery.
+3. `DX.Blame.VCS.Discovery` — provider factory: walks for `.git`/`.hg`, resolves dual-VCS conflict via per-project preference, instantiates the correct provider.
+4. `DX.Blame.VCS.Process` — shared `TVCSProcess` base class (DRY refactor from `TGitProcess`); both providers use it with different executable paths.
+5. `DX.Blame.Git.Provider` — thin wrapper delegating to existing Git sub-units; Git behavior completely unchanged.
+6. `DX.Blame.Hg.Provider` + `Hg.Process` + `Hg.Blame` + `Hg.Discovery` — complete Mercurial implementation; parallel structure to Git sub-units.
+7. `DX.Blame.Engine` (modified) — replaces direct Git calls with `IVCSProvider` dispatch; `FGitPath`/`FGitAvailable` replaced by `FProvider: IVCSProvider`.
 
 ### Critical Pitfalls
 
-1. **Leaked OTA notifiers cause IDE crashes** — every AddNotifier/AddEditorEventsNotifier index must be stored and passed to the corresponding Remove method in the plugin destructor, wrapped in try/except. Test by installing, opening a file, uninstalling — the IDE must not crash.
+1. **Assuming hg annotate output matches git blame porcelain** — Use Mercurial's template system (`-T`) with a custom delimiter format. Write a dedicated Hg parser; do not adapt the Git porcelain parser. Verify with unit tests against known output covering multiple changesets.
 
-2. **Blocking the main thread with git blame** — any synchronous CreateProcess on the main thread freezes the IDE for seconds on large files. Thread from day one. File size is unknown at call time, so there is no safe "sync for small files" optimization.
+2. **Using Mercurial revision numbers instead of node hashes** — Revision numbers are local to a clone and shift on pull. Always use `{node}` (full 40-char hash) as the canonical identifier in `TBlameLineInfo.CommitHash`. Revision numbers for display only, never as internal keys or cache keys.
 
-3. **Heavy computation in PaintLine** — PaintLine fires for every visible line on every repaint (scroll, resize, keypress). It must contain only a single TDictionary lookup plus Canvas.TextOut. All formatting, string building, and parsing must be pre-computed in the background thread before results enter the cache.
+3. **Leaking Git assumptions into the VCS interface** — Design `IVCSProvider` from both implementations simultaneously. Audit for hardcoded `7` (Git short hash length), `0000...` uncommitted sentinel, and Git-specific command strings. Provide `ShortHashLength` or `ShortHash()` via the interface; Git returns 7 chars, Mercurial returns 12.
 
-4. **CreateProcess pipe deadlock on large files** — git blame output exceeds the 4KB pipe buffer on large files. Close the write end of the pipe in the parent process immediately after CreateProcess, then call ReadFile in a loop while the process runs. Never call WaitForSingleObject before ReadFile.
+4. **hg annotate not showing uncommitted lines** — Unlike Git, Mercurial annotate always reflects last committed state. Accept this behavioral difference. Expose `SupportsUncommittedBlame: Boolean` via the interface so the renderer can adapt its visual treatment.
 
-5. **Nil OTA context in PaintLine** — Context, Context.EditView, and Context.EditView.Buffer can all be nil for non-file editor views (start page, diff viewer, binary files). Guard every property access; test by switching rapidly between the IDE start page and a .pas file.
+5. **Dual-VCS detection race and cache collision on VCS switch** — Check for both `.git` and `.hg` simultaneously; prompt once per project when both found; persist choice. On VCS preference change, clear the blame cache and re-trigger annotations on open files.
 
 ## Implications for Roadmap
 
-The feature dependency chain and architectural layers map directly to a clean 5-phase delivery. Each phase is independently testable before the next begins.
+Based on research, the suggested phase structure follows the architectural build order in ARCHITECTURE.md, respecting strict dependency ordering to minimize regression risk.
 
-### Phase 1: Package Foundation and OTA Registration
+### Phase 1: Shared Types Rename and Process Abstraction
 
-**Rationale:** Everything else depends on a correctly registered, stable plugin. Notifier lifecycle errors cause IDE crashes that make all subsequent development painful. Must be solved first and solved correctly with a centralized notifier manager pattern — not bolted on later.
-**Delivers:** Installable BPL that registers with the IDE, appears in splash screen and about box, and cleanly unregisters on unload without IDE crashes.
-**Addresses:** Prerequisite for all features; establishes OTA lifecycle patterns the entire codebase will follow.
-**Avoids:** Pitfall 1 (leaked notifiers), Pitfall 14 (package naming conflicts).
+**Rationale:** Everything depends on `DX.Blame.VCS.Types`. This is a mechanical rename with zero logic risk, but it must compile cleanly before any other work proceeds. Simultaneously extract `TVCSProcess` from `TGitProcess` to establish the DRY foundation for both providers.
+**Delivers:** Renamed `DX.Blame.VCS.Types` unit, updated `uses` clauses in all 14 dependent units, new `DX.Blame.VCS.Process` base class, `DX.Blame.Git.Process` refactored to delegate.
+**Addresses:** Cache integration (types remain structurally unchanged), DRY process wrapper.
+**Avoids:** Pitfall 3 (Git-type leakage) — establishing VCS-neutral types from the start prevents retrofitting.
 
-### Phase 2: Git Blame Data Pipeline
+### Phase 2: VCS Interface and Git Provider Wrapper
 
-**Rationale:** All visual output depends on blame data. Building and validating the data pipeline in isolation (no rendering) makes debugging far easier. The entire pipeline can be covered by DUnitX unit tests against known git repos without IDE involvement.
-**Delivers:** Working async git blame execution, porcelain parser producing TBlameData records, thread-safe cache with normalized path keys, git repo detection, git availability check on startup.
-**Uses:** CreateProcess + pipes (Win32), TThread + ForceQueue (RTL), TDictionary + TCriticalSection (RTL).
-**Implements:** BlameEngine, BlameParser, BlameCache, Utils, TBlameThread.
-**Avoids:** Pitfall 2 (blocking main thread), Pitfall 5 (pipe deadlock), Pitfall 6 (path normalization), Pitfall 7 (git not in PATH), Pitfall 9 (unicode paths).
+**Rationale:** The interface must exist before the engine can be refactored, and the Git provider wrapper proves the interface is correct without changing any observable behavior. This is the safety net before the highest-risk phase.
+**Delivers:** `DX.Blame.VCS.Provider` (interface), `DX.Blame.Git.Provider` (wraps existing Git units). Git blame continues working identically, now routed through the interface.
+**Implements:** `IVCSProvider` interface with all 10 methods defined in ARCHITECTURE.md.
+**Avoids:** Pitfall 3 (interface designed for both implementations, not just Git semantics).
 
-### Phase 3: Core Visual Output — Inline Blame Rendering
+### Phase 3: Engine and CommitDetail Refactoring
 
-**Rationale:** With cache populated, rendering is the final step to the working MVP. PaintLine implementation must be kept strictly O(1) from the outset. Toggle UX is included here because blame without a way to disable it is not shippable.
-**Delivers:** Inline blame annotations visible in the editor after the last code character, showing author and relative time. Toggle via menu and keyboard hotkey.
-**Addresses:** All table stakes features — inline rendering, toggle, automatic blame on file open and save.
-**Implements:** EditorNotifier (INTACodeEditorEvents), Renderer, KeyBinding, Settings.
-**Avoids:** Pitfall 3 (slow PaintLine), Pitfall 4 (nil EditView/Buffer), Pitfall 10 (multiple views of same file), Pitfall 11 (logical vs physical line numbers with code folding), Pitfall 12 (blame text overlapping code), Pitfall 13 (hardcoded colors broken by dark theme).
+**Rationale:** This is the highest-risk phase — modifying the production engine to dispatch via `IVCSProvider`. Isolated into its own phase for focused regression testing. CommitDetail and Navigation are included because they are the remaining units with direct Git CLI calls.
+**Delivers:** `DX.Blame.Engine` using `IVCSProvider`, `DX.Blame.CommitDetail` and `DX.Blame.Navigation` updated to dispatch through provider. Full Git blame regression test point — all existing functionality verified through the new abstraction before any Mercurial code exists.
+**Avoids:** Pitfall 3 (Engine becomes a god class with VCS-specific branches if not refactored now).
 
-### Phase 4: Polish — Caching Correctness and Settings
+### Phase 4: VCS Discovery
 
-**Rationale:** Phase 3 proves the visual approach works. Phase 4 makes caching robust under real-world conditions (saves, tab switching, concurrent file opens) and adds user-facing configuration that was deferred for speed.
-**Delivers:** Robust cache invalidation on save and tab activation, configurable display format, configurable colors with IDE theme awareness, user-accessible settings persistence.
-**Addresses:** Differentiator features — configurable format/colors; production-grade cache behavior.
-**Avoids:** Pitfall 8 (stale blame data after external git operations), Pitfall 15 (stale cache on branch switch — document as v1 known limitation with a plan for v2).
+**Rationale:** Discovery is independent of the Mercurial provider implementation and can be built and tested in isolation. Building it before Phase 5 also validates the dual-VCS conflict handling logic separately from the annotation parsing logic.
+**Delivers:** `DX.Blame.VCS.Discovery` with auto-detection, dual-VCS conflict resolution with user prompt, per-project preference persistence, `hg.exe` and `thg.exe` search paths.
+**Addresses:** Per-project VCS preference, dual-VCS status indicator.
+**Avoids:** Pitfall 5 (dual-VCS race condition), Pitfall 6 (TortoiseHg vs standalone hg.exe confusion), Pitfall 7 (cache collision on VCS switch).
 
-### Phase 5: Enhanced UX — Tooltip and Commit Detail View
+### Phase 5: Mercurial Provider Implementation
 
-**Rationale:** Core value is proven after Phase 3-4. Phase 5 adds the differentiators that elevate DX.Blame above basic blame viewers, without risking stability of the shipping plugin.
-**Delivers:** Hover tooltip showing full commit info (hash, full message, date). Commit detail modal with git show output.
-**Addresses:** Differentiator features — tooltip, commit deep-dive.
-**Note:** Tooltip implementation mechanism (INTACodeEditorEvents mouse events vs. custom VCL popup window) needs a design spike before this phase is planned.
+**Rationale:** All foundational work is complete. This phase adds Mercurial as a pure net-new implementation with no risk to existing Git functionality.
+**Delivers:** `DX.Blame.Hg.Discovery`, `DX.Blame.Hg.Process`, `DX.Blame.Hg.Blame`, `DX.Blame.Hg.Provider`. Full Mercurial blame, commit details, diff, and revision navigation at feature parity with Git.
+**Uses:** `hg annotate -T` template command, `hg log -r HASH -T`, `hg diff -c`, `hg export`, `hg cat -r`, `hg root` — exact command strings documented in STACK.md.
+**Avoids:** Pitfall 1 (output format — custom template parser), Pitfall 2 (node hashes only), Pitfall 4 (uncommitted lines — accept and document), Pitfall 8 (date format — use `{date|hgdate}`), Pitfall 10 (encoding — set `HGENCODING=utf-8` in process environment).
+
+### Phase 6: Settings, UI, and TortoiseHg Integration
+
+**Rationale:** UI changes are always last — they depend on all provider logic being stable. Settings expose the VCS preference that Discovery already handles internally. TortoiseHg context menu is additive and the lowest-risk change in the entire project.
+**Delivers:** Settings VCS dropdown (Auto/Git/Mercurial), `DX.Blame.Settings` VCS preference persistence, optional "Open in TortoiseHg Annotate/Log" context menu items.
+**Addresses:** Settings dialog VCS section differentiator, TortoiseHg integration differentiator.
+**Avoids:** Pitfall 6 (thg vs hg confusion — context menu uses thg for GUI launch only, never for data retrieval).
 
 ### Phase Ordering Rationale
 
-- Foundation before features: OTA notifier lifecycle errors cascade across all work that follows; they must be solved once, correctly.
-- Data before rendering: The pipeline is fully testable without IDE in the loop; rendering is not.
-- Rendering before polish: Visual feedback validates the approach early; cache optimizations are meaningless without working visuals.
-- Caching/settings after rendering: Production-grade cache behavior and configuration are quality improvements on a working foundation.
-- Tooltip/detail view last: These are differentiators, not table stakes. Ship core value first.
-
-The feature dependency chain (git detection → blame execution → parsing → cache → rendering → toggle) maps directly to phases 2 and 3, confirming this sequence.
+- Types rename is the unconditional first step — 14 units have a compile-time dependency on it.
+- Interface definition must precede engine refactoring so the engine has a type to reference.
+- The Git provider wrapper proves the interface is correct before any engine changes are made.
+- Engine refactoring must complete before the Mercurial provider exists — the engine must be provider-agnostic to accept a new concrete implementation.
+- Discovery is independent of the Hg provider but must precede engine wiring in Phase 3 (even if not fully wired yet).
+- Settings and UI always follow stable provider contracts to avoid churn.
 
 ### Research Flags
 
-Phases with standard, well-documented patterns (skip additional research):
-- **Phase 1:** OTA wizard/notifier registration is thoroughly covered by Embarcadero docs and the DGH OTA Template. No research needed.
-- **Phase 2:** CreateProcess pipe patterns and git porcelain format are both fully documented. DUnitX-testable in isolation.
-- **Phase 3:** INTACodeEditorEvents PaintLine is documented by Embarcadero. Pitfalls are known and preventable.
-- **Phase 4:** Cache and settings patterns are standard Delphi RTL. INTACodeEditorOptions for theme colors needs verification but is low risk.
+Phases with standard patterns (no additional research needed):
+- **Phase 1 (Types rename + Process abstraction):** Purely mechanical; Delphi unit rename and interface extraction are well-understood.
+- **Phase 2 (Interface + Git wrapper):** Standard Delphi interface/implementation pattern.
+- **Phase 3 (Engine refactoring):** Well-understood refactoring with detailed design in ARCHITECTURE.md.
+- **Phase 6 (Settings + TortoiseHg):** Standard settings form extension plus fire-and-forget process launch.
 
-Phases likely needing deeper research before planning:
-- **Phase 5 (Hover tooltip):** The mechanism for tooltip windows tied to editor mouse position is sparsely documented. INTACodeEditorEvents mouse events vs. custom TWinControl overlay approach needs a spike before Phase 5 planning. Flag for `/gsd:research-phase`.
+Phases that warrant pre-implementation review before coding:
+- **Phase 5 (Mercurial provider — annotate parser specifically):** The template format and parser state machine are the most novel element in this project. Review PITFALLS.md Pitfalls 1, 2, 4, 8, and 10 before writing the parser. Prototype the template command against a real Mercurial repository to validate output format before writing the parser.
+- **Phase 4 (VCS Discovery — dual-VCS conflict UX):** The prompt-and-persist pattern for dual-VCS projects has no existing precedent in the codebase. The UX interaction model (modal dialog vs non-modal notification vs IDE Messages action) must be decided before coding the discovery module.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Core APIs are Embarcadero-official with full documentation. Git porcelain format is stable and version-independent. Win32 CreateProcess pattern is well-established Delphi practice. No external dependencies introduce uncertainty. |
-| Features | HIGH | GitLens provides a mature, battle-tested feature reference. The must-have list is clearly bounded by the dependency chain. Anti-features are explicitly justified to prevent scope creep. |
-| Architecture | HIGH | Component boundaries are clear. Data flow is linear and has no cycles. All patterns (TNotifierObject base class, ForceQueue dispatch, TCriticalSection for cache) are standard Delphi RTL/OTA idioms documented by multiple sources. |
-| Pitfalls | HIGH | All critical pitfalls are documented by multiple independent sources (Parnassus, David Hoyle, GExperts, Embarcadero, IdeasAwakened). Prevention strategies are specific and directly testable. |
+| Stack | HIGH | All CLI commands sourced from official Mercurial documentation. Exact command strings and template keywords verified. No experimental APIs. |
+| Features | HIGH | Feature scope is clearly bounded by Git blame parity. Mercurial CLI is mature and stable. All operations have confirmed equivalents. |
+| Architecture | HIGH | Based on direct analysis of the existing 18-unit codebase. Interface contract covers both providers. Dependency ordering validated against the unit graph. |
+| Pitfalls | HIGH | 15 specific pitfalls identified with concrete prevention strategies and detection tests. Mercurial/Git behavioral differences are thoroughly documented by the Mercurial project itself. |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Hover tooltip mechanism (Phase 5):** The exact API for attaching a tooltip window to an editor view position is not fully documented in official sources. Options include INTACodeEditorEvents mouse events with a custom VCL form, or TWinControl-level tooltip APIs. Needs a spike before Phase 5 planning.
-- **INTACodeEditorPaintContext full interface:** The complete property list is not exhaustively documented online. Inspect ToolsAPI.Editor.pas in the Delphi installation during Phase 3 to confirm all available canvas and line rect properties.
-- **IDE theme color access:** How to read the current IDE theme's background/foreground colors for adaptive blame text. INTACodeEditorOptions is the likely source but needs verification against a live IDE during Phase 3.
-- **Branch-switch detection (v1 limitation):** No OTA event fires on external git branch switches. Accept re-blame-on-tab-activation as sufficient for v1. Evaluate event-based detection (polling git rev-parse HEAD) for v2.
-- **Delphi 13 OTA API changes:** No documentation found on OTA changes in Delphi 13 Florence. OTA is additive by convention so breaking changes are unlikely, but verify during Phase 1 setup on Delphi 13.
+- **Mercurial 3.8 vs 4.6 template compatibility:** Research indicates the `{lines % "..."}` operator was refined in 4.6. During Phase 5 implementation, test against Mercurial 3.8 specifically. If the template fails, either raise the minimum supported version to 4.6 (document this) or implement a fallback parser for default `hg annotate -c -u -d` output.
+
+- **Dual-VCS prompt UX design:** The requirement is clear (prompt once, persist choice) but the exact UI pattern is unspecified. Decide between modal dialog, non-modal notification bar, or IDE Messages pane action before Phase 4 implementation to avoid retrofitting the discovery module's callback interface.
+
+- **Short hash display convention in v1.0:** ARCHITECTURE.md recommends abstracting `ShortHashLength` in `IVCSProvider`. Confirm whether the popup, context menu, and temp file naming in v1.0 already use a helper or hardcode `Copy(hash, 1, 7)`. If hardcoded, this needs to be addressed in Phase 2 (interface design) not Phase 5.
+
+- **hg annotate timeout baseline:** PITFALLS.md notes Mercurial annotate is slower than `git blame`. The existing 5000ms `WaitForSingleObject` timeout may be insufficient on large repositories. Establish a realistic timeout during Phase 5 testing on representative large files before shipping.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- [Embarcadero: ToolsAPI Support for the Code Editor](https://docwiki.embarcadero.com/RADStudio/Athens/en/ToolsAPI_Support_for_the_Code_Editor) — INTACodeEditorEvents, PaintLine, AllowedEvents, AllowedLineStages
-- [Embarcadero: INTACodeEditorEvents.BeginPaint](https://docwiki.embarcadero.com/Libraries/Athens/en/ToolsAPI.Editor.INTACodeEditorEvents.BeginPaint) — method reference
-- [Embarcadero: INTACodeEditorEvents.PaintText](https://docwiki.embarcadero.com/Libraries/Athens/en/ToolsAPI.Editor.INTACodeEditorEvents.PaintText) — method reference
-- [Embarcadero Blog: Ultimate Open Tools APIs for Decorating Your IDE](https://blogs.embarcadero.com/quickly-learn-about-the-ultimate-open-tools-apis-for-decorating-your-delphi-c-builder-ide/) — OTA painting overview with usage examples
-- [Git blame documentation](https://git-scm.com/docs/git-blame) — official porcelain format specification
-- [VS Code GitLens](https://marketplace.visualstudio.com/items?itemName=eamodio.gitlens) — feature reference for user expectations
+- [hg annotate documentation](https://repo.mercurial-scm.org/hg/help/annotate) — annotate flags, template operator `{lines % "..."}`, field keywords `{node}`, `{user}`, `{date}`, `{line}`, `{lineno}`
+- [Mercurial templates reference](https://repo.mercurial-scm.org/hg/help/templates) — all template keywords and filters including `{node}`, `{date|hgdate}`, `{user|emailuser}`
+- [hg log documentation](https://repo.mercurial-scm.org/hg/help/log) — `-r`, `-T`, `-p` flags, structured commit output
+- [hg diff documentation](https://repo.mercurial-scm.org/hg/help/diff) — `-c` (change) flag for single-changeset diff
+- [TortoiseHg documentation](https://tortoisehg.readthedocs.io/en/latest/) — thg CLI is GUI-launch only; `hg.exe` bundled in TortoiseHg installation directory
+- [Mercurial template customization book](https://book.mercurial-scm.org/read/template.html) — template syntax, filter reference, `{lines % "..."}` operator
+- Existing DX.Blame v1.0 codebase (18 production units in `y:/DX.Blame/src/`) — architecture analysis basis
 
 ### Secondary (MEDIUM confidence)
-- [Embarcadero OTAPI-Docs (GitHub)](https://github.com/Embarcadero/OTAPI-Docs) — community-maintained OTA reference
-- [DGH2112 OTA Template (GitHub)](https://github.com/DGH2112/OTA-Template) — wizard structure and notifier lifecycle reference implementation
-- [Dave Hoyle: OTA Blog Series](https://www.davidghoyle.co.uk/WordPress/?page_id=667) — notifier lifecycle, about box, splash screen patterns
-- [GExperts OTA FAQ](https://www.gexperts.org/open-tools-api-faq/) — common OTA mistakes and solutions
-- [IdeasAwakened: CreateProcess with output capture](https://ideasawakened.com/post/use-createprocess-and-capture-the-output-in-windows) — pipe pattern with deadlock avoidance
-- [Sebastian Schoener: Win32 Async Redirect](https://blog.s-schoener.com/2024-06-16-stream-redirection-win32/) — pipe buffer overflow documentation
-- [Cary Jensen: Editor Key Bindings](http://caryjensen.blogspot.com/2010/06/creating-editor-key-bindings-in-delphi.html) — IOTAKeyboardBinding tutorial
+- [Replicating git show in Mercurial](https://slaptijack.com/software/git-show-in-hg.html) — `hg export` as `git show` equivalent
+- [Git vs Mercurial command mapping (hyperpolyglot)](https://hyperpolyglot.org/version-control) — comprehensive command equivalence table
+- [Mercurial GitConcepts wiki](https://wiki.mercurial-scm.org/GitConcepts) — Git-to-Mercurial concept mapping and behavioral differences
 
-### Tertiary (LOW confidence — historical reference only)
-- [Parnassus: Mysteries of IDE Plugins Part 1 & 2](https://parnassus.co/mysteries-of-ide-plugins-painting-in-the-code-editor-part-1/) — documents the pre-11.3 hook approach; useful context but NOT recommended for new code
-- [DDetours (GitHub)](https://github.com/MahdiSafsafi/DDetours) — fallback for pre-11.3 support only; last updated 2020, Delphi 13 compatibility unverified; not needed for this project
+### Tertiary (LOW confidence)
+- None — all key findings confirmed with primary or secondary sources.
 
 ---
-*Research completed: 2026-03-17*
+*Research completed: 2026-03-23*
 *Ready for roadmap: yes*
