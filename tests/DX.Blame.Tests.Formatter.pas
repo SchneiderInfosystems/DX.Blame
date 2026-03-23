@@ -223,7 +223,7 @@ var
   LInfo: TBlameLineInfo;
 begin
   LInfo := MakeLineInfo('Author', Now, 'Summary');
-  Assert.AreEqual(9, GetAnnotationHashLength(LInfo), 'Committed line hash length should be 9 (7 hash + 2 spaces)');
+  Assert.AreEqual(7, GetAnnotationHashLength(LInfo), 'Committed line hash length should be 7 (hash only, no spaces)');
 end;
 
 procedure TFormatterTests.TestGetAnnotationHashLengthUncommitted;

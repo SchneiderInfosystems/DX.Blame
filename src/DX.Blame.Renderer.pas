@@ -145,8 +145,8 @@ var
 function TDXBlameRenderer.AllowedEvents: TCodeEditorEvents;
 begin
   // cevPaintLineEvents for PaintLine; cevKeyboardEvents ensures
-  // EditorSetCaretPos fires on cursor movement
-  Result := [cevPaintLineEvents, cevKeyboardEvents];
+  // EditorSetCaretPos fires on cursor movement; cevMouseEvents for annotation clicks
+  Result := [cevPaintLineEvents, cevKeyboardEvents, cevMouseEvents];
 end;
 
 function TDXBlameRenderer.AllowedLineStages: TPaintLineStages;

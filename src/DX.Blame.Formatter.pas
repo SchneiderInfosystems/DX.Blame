@@ -141,7 +141,7 @@ begin
   if ALineInfo.IsUncommitted then
     Result := 0
   else
-    Result := 9; // 7-char hash + 2 spaces
+    Result := 7; // 7-char hash only, no trailing spaces
 end;
 
 function DeriveAnnotationColor: TColor;
