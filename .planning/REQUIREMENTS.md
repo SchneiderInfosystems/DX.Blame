@@ -1,0 +1,92 @@
+# Requirements: DX.Blame
+
+**Defined:** 2026-03-23
+**Core Value:** Der Entwickler sieht auf einen Blick, wer eine Codezeile zuletzt geändert hat und wann, ohne die IDE verlassen zu müssen.
+
+## v1.1 Requirements
+
+Requirements for Mercurial support milestone. Each maps to roadmap phases.
+
+### VCS Abstraction
+
+- [ ] **VCSA-01**: IVCSProvider interface defines blame, commit detail, diff, file-at-revision, and discovery operations
+- [ ] **VCSA-02**: Shared VCS-neutral types (TBlameLineInfo, TBlameData, TCommitDetail) in DX.Blame.VCS.Types
+- [ ] **VCSA-03**: Shared TVCSProcess base class extracted from TGitProcess for DRY CLI execution
+- [ ] **VCSA-04**: TGitProvider wraps existing Git units behind IVCSProvider interface
+- [ ] **VCSA-05**: Engine dispatches all VCS operations through IVCSProvider (no direct Git calls)
+
+### Mercurial Blame
+
+- [ ] **HGB-01**: User sees inline blame annotations for Mercurial-tracked files via hg annotate -T
+- [ ] **HGB-02**: User can click annotation to see commit details (hash, author, date, message) via hg log
+- [ ] **HGB-03**: User can view RTF color-coded diff for Mercurial commits via hg diff -c
+- [ ] **HGB-04**: User can navigate to annotated revision via hg cat -r
+- [ ] **HGB-05**: Mercurial blame uses dedicated template-based parser (not adapted Git parser)
+
+### VCS Detection
+
+- [ ] **VCSD-01**: Plugin auto-detects .git or .hg directory in project tree
+- [ ] **VCSD-02**: Plugin discovers hg.exe via PATH and TortoiseHg installation paths
+- [ ] **VCSD-03**: Plugin verifies repository with hg root before activating Mercurial backend
+- [ ] **VCSD-04**: User is prompted once per project when both .git and .hg are present, choice is persisted
+- [ ] **VCSD-05**: Active VCS backend is indicated in IDE Messages
+
+### Settings & UI
+
+- [ ] **SETT-01**: User can select VCS preference (Auto/Git/Mercurial) in settings dialog
+- [ ] **SETT-02**: User can open current file in TortoiseHg Annotate via context menu
+- [ ] **SETT-03**: User can open current file in TortoiseHg Log via context menu
+
+## v2 Requirements
+
+Deferred to future release. Tracked but not in current roadmap.
+
+### UX Improvements
+
+- **UX-01**: Annotation X positioning anchored to caret column instead of end-of-line
+- **UX-02**: Statusbar display mode as alternative to inline annotations
+- **UX-03**: Context menu toggle for blame enable/disable with shortcut hint
+- **UX-04**: Auto-scroll temp file to same line area when opening historical revision
+
+## Out of Scope
+
+| Feature | Reason |
+|---------|--------|
+| SVN or other VCS backends | Interface is extensible but only Git and Mercurial for v1.1 |
+| libhg native bindings | Same rationale as libgit2 — CLI is simpler and more reliable |
+| Mercurial blame for uncommitted lines | hg annotate only reflects committed state; accept as behavioral difference |
+| Mercurial GUI integration beyond TortoiseHg | TortoiseHg is the dominant Windows Mercurial client |
+
+## Traceability
+
+Which phases cover which requirements. Updated during roadmap creation.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| VCSA-01 | — | Pending |
+| VCSA-02 | — | Pending |
+| VCSA-03 | — | Pending |
+| VCSA-04 | — | Pending |
+| VCSA-05 | — | Pending |
+| HGB-01 | — | Pending |
+| HGB-02 | — | Pending |
+| HGB-03 | — | Pending |
+| HGB-04 | — | Pending |
+| HGB-05 | — | Pending |
+| VCSD-01 | — | Pending |
+| VCSD-02 | — | Pending |
+| VCSD-03 | — | Pending |
+| VCSD-04 | — | Pending |
+| VCSD-05 | — | Pending |
+| SETT-01 | — | Pending |
+| SETT-02 | — | Pending |
+| SETT-03 | — | Pending |
+
+**Coverage:**
+- v1.1 requirements: 18 total
+- Mapped to phases: 0
+- Unmapped: 18 ⚠️
+
+---
+*Requirements defined: 2026-03-23*
+*Last updated: 2026-03-23 after initial definition*
