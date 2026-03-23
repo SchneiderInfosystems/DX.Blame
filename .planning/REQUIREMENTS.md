@@ -66,7 +66,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BLAME-05 | Phase 2 | Complete |
 | BLAME-06 | Phase 2 | Complete |
 | TTIP-01 | Phase 4 | Complete |
-| TTIP-02 | Phase 4 | Pending |
+| TTIP-02 | Phase 4 | Complete |
 | CONF-01 | Phase 3 | Complete |
 | CONF-02 | Phase 3 | Complete |
 | UX-01 | Phase 3 | Complete |

@@ -13,9 +13,10 @@ DX.Blame delivers inline Git blame annotations in the Delphi IDE, progressing fr
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Package Foundation** - Installable BPL with stable OTA lifecycle and clean unload (completed 2026-03-19)
-- [ ] **Phase 2: Blame Data Pipeline** - Async git blame execution, parsing, and thread-safe caching
+- [x] **Phase 2: Blame Data Pipeline** - Async git blame execution, parsing, and thread-safe caching (completed 2026-03-19)
 - [x] **Phase 3: Inline Rendering and UX** - Visible blame annotations with toggle, navigation, and configuration (completed 2026-03-23)
 - [x] **Phase 4: Tooltip and Commit Detail** - Click-triggered popup with full commit info and modal diff detail view (completed 2026-03-23)
+- [ ] **Phase 5: Tech Debt Cleanup** - Fix latent bugs, implement theme-aware annotation color, break circular dependency, remove dead code
 
 ## Phase Details
 
@@ -47,9 +48,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Data types, git discovery, and git process wrapper (foundation units)
-- [ ] 02-02-PLAN.md — Porcelain parser, thread-safe cache, and unit tests
-- [ ] 02-03-PLAN.md — Blame engine orchestrator, IDE notifiers, and Registration.pas wiring
+- [x] 02-01-PLAN.md — Data types, git discovery, and git process wrapper (foundation units)
+- [x] 02-02-PLAN.md — Porcelain parser, thread-safe cache, and unit tests
+- [x] 02-03-PLAN.md — Blame engine orchestrator, IDE notifiers, and Registration.pas wiring
 
 ### Phase 3: Inline Rendering and UX
 **Goal**: Users see blame annotations inline at the end of the current code line and can toggle, configure, and navigate blame
@@ -65,7 +66,7 @@ Plans:
 Plans:
 - [x] 03-01-PLAN.md — Settings persistence (INI) and annotation formatter with unit tests
 - [x] 03-02-PLAN.md — Editor renderer (INTACodeEditorEvents), menu toggle, and keyboard shortcut
-- [x] 03-03-PLAN.md — Settings configuration dialog and parent revision navigation
+- [x] 03-03-PLAN.md — Settings configuration dialog and revision navigation
 
 ### Phase 4: Tooltip and Commit Detail
 **Goal**: Users get full commit context by clicking a blame annotation and can drill into the complete diff without leaving the IDE
@@ -80,10 +81,24 @@ Plans:
 - [x] 04-01-PLAN.md — Commit detail cache, popup panel, click detection, and renderer wiring
 - [x] 04-02-PLAN.md — Modal diff dialog with RTF coloring, scope toggle, size persistence, and tests
 
+### Phase 5: Tech Debt Cleanup
+**Goal**: Fix latent bugs, implement IDE theme-aware annotation color, break circular unit dependency, and clean up dead code and stale documentation
+**Depends on**: Phase 4
+**Requirements**: CONF-02 (improve auto-color path)
+**Gap Closure**: Closes tech debt from v1.0 milestone audit
+**Success Criteria** (what must be TRUE):
+  1. DeriveAnnotationColor returns a theme-blended color using INTACodeEditorServices instead of hardcoded clGray
+  2. Registration.pas finalization guards use >= 0 instead of > 0 for wizard and about-box cleanup
+  3. Circular dependency between DX.Blame.KeyBinding and DX.Blame.Registration is broken
+  4. Orphaned OnShowDiffClick property removed from TDXBlamePopup
+  5. GetAnnotationClickableLength documentation matches actual behavior (author name span)
+  6. TTIP-02 traceability table entry updated from Pending to Complete
+**Plans**: 0 plans
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -91,3 +106,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | 2. Blame Data Pipeline | 3/3 | Complete | 2026-03-19 |
 | 3. Inline Rendering and UX | 3/3 | Complete | 2026-03-23 |
 | 4. Tooltip and Commit Detail | 2/2 | Complete | 2026-03-23 |
+| 5. Tech Debt Cleanup | 0/0 | Planned | — |
