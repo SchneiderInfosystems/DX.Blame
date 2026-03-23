@@ -1,11 +1,11 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.1
-milestone_name: "Mercurial Support"
-status: ready_to_plan
-stopped_at: Roadmap created for v1.1
-last_updated: "2026-03-23T17:00:00.000Z"
-last_activity: 2026-03-23 -- Roadmap created for v1.1 Mercurial Support
+milestone_name: Mercurial Support
+status: planning
+stopped_at: Phase 6 context gathered
+last_updated: "2026-03-23T13:14:21.718Z"
+last_activity: 2026-03-23 — Roadmap created for v1.1
 progress:
   total_phases: 5
   completed_phases: 0
@@ -65,6 +65,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-23
-Stopped at: Roadmap created for v1.1 Mercurial Support
-Resume file: None
+Last session: 2026-03-23T13:14:21.669Z
+Stopped at: Phase 6 context gathered
+Resume file: .planning/phases/06-vcs-abstraction-foundation/06-CONTEXT.md
