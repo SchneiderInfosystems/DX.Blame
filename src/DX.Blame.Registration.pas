@@ -306,21 +306,24 @@ finalization
   // 2. Stop keyboard binding (must stop before renderer to avoid toggle during unload)
   UnregisterKeyBinding;
 
-  // 3. Stop renderer (must stop painting before notifiers are removed)
+  // 3. Clean up popup panel before stopping renderer
+  CleanupPopup;
+
+  // 4. Stop renderer (must stop painting before notifiers are removed)
   UnregisterRenderer;
 
-  // 4. Remove IDE notifiers (notifiers must stop before UI cleanup)
+  // 5. Remove IDE notifiers (notifiers must stop before UI cleanup)
   UnregisterIDENotifiers;
 
-  // 5. Remove UI elements (menu items and handler)
+  // 6. Remove UI elements (menu items and handler)
   RemoveToolsMenu;
 
-  // 6. Remove wizard registration
+  // 7. Remove wizard registration
   if GWizardIndex >= 0 then
     if Assigned(BorlandIDEServices) then
       (BorlandIDEServices as IOTAWizardServices).RemoveWizard(GWizardIndex);
 
-  // 7. Remove about box entry last
+  // 8. Remove about box entry last
   if GAboutPluginIndex >= 0 then
     if Assigned(BorlandIDEServices) then
       (BorlandIDEServices as IOTAAboutBoxServices).RemovePluginInfo(GAboutPluginIndex);

@@ -110,7 +110,8 @@ uses
   ToolsAPI.Editor,
   DX.Blame.Git.Discovery,
   DX.Blame.Git.Process,
-  DX.Blame.Git.Blame;
+  DX.Blame.Git.Blame,
+  DX.Blame.CommitDetail;
 
 var
   GBlameEngine: TBlameEngine;
@@ -403,6 +404,7 @@ begin
   CancelAllThreads;
   ClearAllTimers;
   FCache.Clear;
+  CommitDetailCache.Clear;
   FRetryFailed.Clear;
   ClearDiscoveryCache;
   Initialize(ANewProjectPath);

@@ -1,6 +1,6 @@
 /// <summary>
 /// DX.Blame.Renderer
-/// INTACodeEditorEvents implementation for inline blame painting.
+/// INTACodeEditorEvents implementation for inline blame painting and click detection.
 /// </summary>
 ///
 /// <remarks>
@@ -9,6 +9,7 @@
 /// annotations inline after the last character of each line. Annotations
 /// are rendered in italic style using a theme-derived muted color.
 /// Canvas state is saved and restored to prevent IDE painting corruption.
+/// Click detection on annotation areas triggers the blame popup panel.
 /// </remarks>
 ///
 /// <copyright>
@@ -33,13 +34,14 @@ uses
 type
   /// <summary>
   /// Editor events notifier that paints blame annotations inline after
-  /// the last character of each code line.
+  /// the last character of each code line and handles annotation clicks.
   /// </summary>
   TDXBlameRenderer = class(TNotifierObject, INTACodeEditorEvents,
     INTACodeEditorEvents370)
   private
     FCurrentLine: Integer;
     FCurrentEditor: TWinControl;
+    FCurrentFileName: string;
   protected
     { INTACodeEditorEvents }
     procedure EditorScrolled(const Editor: TWinControl;
@@ -96,14 +98,20 @@ procedure UnregisterRenderer;
 /// <summary>Invalidates the top editor to trigger a repaint cycle.</summary>
 procedure InvalidateAllEditors;
 
+/// <summary>Cleans up the popup panel. Called during finalization.</summary>
+procedure CleanupPopup;
+
 implementation
 
 uses
+  System.Generics.Collections,
   DX.Blame.Settings,
   DX.Blame.Formatter,
   DX.Blame.Engine,
   DX.Blame.Git.Types,
-  DX.Blame.Cache;
+  DX.Blame.Cache,
+  DX.Blame.Popup,
+  DX.Blame.CommitDetail;
 
 {$IFDEF DEBUG}
 var
@@ -120,6 +128,17 @@ end;
 
 var
   GRendererIndex: Integer = -1;
+  GPopup: TDXBlamePopup = nil;
+
+  // Per-paint-cycle annotation hit-test data:
+  // Maps paint rect top Y to annotation start X
+  GAnnotationXByRow: TDictionary<Integer, Integer>;
+  // Maps paint rect top Y to logical line number
+  GLineByRow: TDictionary<Integer, Integer>;
+  // Cell height from the last paint cycle
+  GCellHeight: Integer = 0;
+  // Editor TWinControl from the last paint cycle
+  GLastPaintEditor: TWinControl = nil;
 
 { TDXBlameRenderer }
 
@@ -153,6 +172,24 @@ begin
   // caret line is read from EditView.CursorPos.Line in PaintLine.
   FCurrentEditor := Editor;
   InvalidateAllEditors;
+end;
+
+procedure TDXBlameRenderer.BeginPaint(const Editor: TWinControl;
+  const ForceFullRepaint: Boolean);
+begin
+  // Clear hit-test data for the new paint cycle
+  if GAnnotationXByRow <> nil then
+    GAnnotationXByRow.Clear;
+  if GLineByRow <> nil then
+    GLineByRow.Clear;
+
+  // Hide popup if editor changed (switched tabs)
+  if (GLastPaintEditor <> nil) and (GLastPaintEditor <> Editor) then
+  begin
+    if (GPopup <> nil) and GPopup.Visible then
+      GPopup.Hide;
+  end;
+  GLastPaintEditor := Editor;
 end;
 
 procedure TDXBlameRenderer.PaintLine(const Rect: TRect;
@@ -189,9 +226,12 @@ begin
   if not BlameSettings.Enabled then
     Exit;
 
+  // Store cell height for hit-testing in EditorMouseDown
+  GCellHeight := Context.CellSize.cy;
+
   LLogicalLine := Context.LogicalLineNum;
 
-  // Always read the logical caret line from the EditView — EditorSetCaretPos
+  // Always read the logical caret line from the EditView -- EditorSetCaretPos
   // Y is view-relative (screen row), not usable for line matching.
   if Context.EditView <> nil then
     FCurrentLine := Context.EditView.CursorPos.Line;
@@ -210,6 +250,9 @@ begin
   if LFileName = '' then
     Exit;
 
+  // Store current file name for click handling
+  FCurrentFileName := LFileName;
+
   // Look up blame data from cache
   if not BlameEngine.Cache.TryGet(LFileName, LBlameData) then
   begin
@@ -223,7 +266,7 @@ begin
     Exit;
   end;
 
-  // Skip annotation when buffer has been modified since last save —
+  // Skip annotation when buffer has been modified since last save --
   // blame cache is stale and line indices would map to wrong lines
   if Context.EditView.Buffer.IsModified then
     Exit;
@@ -259,6 +302,12 @@ begin
     LAnnotationX := Context.LineState.VisibleTextRect.Right +
       (Context.CellSize.cx * 3);
 
+    // Store annotation position for click hit-testing
+    if GAnnotationXByRow <> nil then
+      GAnnotationXByRow.AddOrSetValue(Rect.Top, LAnnotationX);
+    if GLineByRow <> nil then
+      GLineByRow.AddOrSetValue(Rect.Top, LLogicalLine);
+
     // Transparent background for annotation text
     LCanvas.Brush.Style := bsClear;
 
@@ -289,12 +338,6 @@ begin
   // No text painting override
 end;
 
-procedure TDXBlameRenderer.BeginPaint(const Editor: TWinControl;
-  const ForceFullRepaint: Boolean);
-begin
-  // No action needed
-end;
-
 procedure TDXBlameRenderer.EndPaint(const Editor: TWinControl);
 begin
   // No action needed
@@ -303,7 +346,9 @@ end;
 procedure TDXBlameRenderer.EditorScrolled(const Editor: TWinControl;
   const Direction: TCodeEditorScrollDirection);
 begin
-  // No action needed
+  // Hide popup on scroll to prevent stale positioning
+  if (GPopup <> nil) and GPopup.Visible then
+    GPopup.Hide;
 end;
 
 procedure TDXBlameRenderer.EditorResized(const Editor: TWinControl);
@@ -326,7 +371,7 @@ end;
 procedure TDXBlameRenderer.EditorMouseDown(const Editor: TWinControl;
   Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 begin
-  // No action needed
+  // No action needed (non-370 overload)
 end;
 
 procedure TDXBlameRenderer.EditorMouseMove(const Editor: TWinControl;
@@ -344,8 +389,86 @@ end;
 procedure TDXBlameRenderer.EditorMouseDown(const Editor: TWinControl;
   Button: TMouseButton; Shift: TShiftState; X, Y: Integer;
   var Handled: Boolean);
+var
+  LRowTop: Integer;
+  LAnnotationX: Integer;
+  LLogicalLine: Integer;
+  LLineIndex: Integer;
+  LFileName: string;
+  LBlameData: TBlameData;
+  LScreenPos: TPoint;
+  LRepoRoot: string;
+  LRelPath: string;
+  LPair: TPair<Integer, Integer>;
+  LFound: Boolean;
 begin
-  // No action needed
+  if Button <> mbLeft then
+    Exit;
+  if not BlameSettings.Enabled then
+    Exit;
+  if GAnnotationXByRow = nil then
+    Exit;
+  if GCellHeight <= 0 then
+    Exit;
+
+  // Find the row that contains the click Y coordinate
+  LFound := False;
+  LAnnotationX := 0;
+  LLogicalLine := 0;
+
+  for LPair in GAnnotationXByRow do
+  begin
+    LRowTop := LPair.Key;
+    if (Y >= LRowTop) and (Y < LRowTop + GCellHeight) then
+    begin
+      LAnnotationX := LPair.Value;
+      if (GLineByRow <> nil) and GLineByRow.TryGetValue(LRowTop, LLogicalLine) then
+        LFound := True;
+      Break;
+    end;
+  end;
+
+  if not LFound then
+    Exit;
+
+  // Check if click is in annotation area
+  if X < LAnnotationX then
+    Exit;
+
+  // Get blame data for the clicked line
+  LFileName := FCurrentFileName;
+  if LFileName = '' then
+    Exit;
+
+  if not BlameEngine.Cache.TryGet(LFileName, LBlameData) then
+    Exit;
+
+  LLineIndex := LLogicalLine - 1;
+  if (LLineIndex < 0) or (LLineIndex >= Length(LBlameData.Lines)) then
+    Exit;
+
+  // Compute screen position for popup placement
+  LScreenPos := Editor.ClientToScreen(Point(X, Y));
+
+  // Compute relative file path for git commands
+  LRepoRoot := BlameEngine.RepoRoot;
+  if LRepoRoot <> '' then
+    LRelPath := ExtractRelativePath(
+      IncludeTrailingPathDelimiter(LRepoRoot), LFileName)
+  else
+    LRelPath := ExtractFileName(LFileName);
+  LRelPath := StringReplace(LRelPath, '\', '/', [rfReplaceAll]);
+
+  // Create or update popup
+  if GPopup = nil then
+    GPopup := TDXBlamePopup.CreateNew(nil);
+
+  if GPopup.Visible then
+    GPopup.UpdateContent(LBlameData.Lines[LLineIndex], LRepoRoot, LRelPath)
+  else
+    GPopup.ShowForCommit(LBlameData.Lines[LLineIndex], LScreenPos, LRepoRoot, LRelPath);
+
+  Handled := True;
 end;
 
 procedure TDXBlameRenderer.EditorMouseUp(const Editor: TWinControl;
@@ -377,10 +500,21 @@ begin
     LServices.InvalidateTopEditor;
 end;
 
+procedure CleanupPopup;
+begin
+  FreeAndNil(GPopup);
+end;
+
 procedure RegisterRenderer;
 var
   LServices: INTACodeEditorServices;
 begin
+  // Initialize hit-test dictionaries
+  if GAnnotationXByRow = nil then
+    GAnnotationXByRow := TDictionary<Integer, Integer>.Create;
+  if GLineByRow = nil then
+    GLineByRow := TDictionary<Integer, Integer>.Create;
+
   if Supports(BorlandIDEServices, INTACodeEditorServices, LServices) then
     GRendererIndex := LServices.AddEditorEventsNotifier(TDXBlameRenderer.Create);
 end;
@@ -396,5 +530,12 @@ begin
     GRendererIndex := -1;
   end;
 end;
+
+initialization
+
+finalization
+  CleanupPopup;
+  FreeAndNil(GAnnotationXByRow);
+  FreeAndNil(GLineByRow);
 
 end.
