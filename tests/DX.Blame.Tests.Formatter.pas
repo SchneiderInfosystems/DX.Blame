@@ -58,11 +58,11 @@ type
     [Test]
     procedure TestFormatAbsoluteDate;
     [Test]
-    procedure TestFormatIncludesShortHash;
+    procedure TestClickableLengthWithAuthor;
     [Test]
-    procedure TestGetAnnotationHashLengthCommitted;
+    procedure TestClickableLengthWithoutAuthor;
     [Test]
-    procedure TestGetAnnotationHashLengthUncommitted;
+    procedure TestClickableLengthUncommitted;
     [Test]
     procedure TestDeriveColorFallbackIsGray;
     [Test]
@@ -134,11 +134,12 @@ var
   LInfo: TBlameLineInfo;
   LResult: string;
 begin
+  FSettings.ShowAuthor := True;
+  FSettings.DateFormat := dfRelative;
   // Use 95 days ago to guarantee MonthsBetween = 3
   LInfo := MakeLineInfo('John Doe', Now - 95, 'Fix bug');
   LResult := FormatBlameAnnotation(LInfo, FSettings);
-  Assert.IsTrue(LResult.StartsWith('abc1234  '), 'Should start with short hash prefix');
-  Assert.Contains(LResult, 'John Doe');
+  Assert.IsTrue(LResult.StartsWith('John Doe'), 'Should start with author name');
   Assert.Contains(LResult, '3 months ago');
 end;
 
@@ -201,37 +202,45 @@ begin
   FSettings.DateFormat := dfAbsolute;
   LInfo := MakeLineInfo('Jane', EncodeDate(2025, 6, 15), 'Commit');
   LResult := FormatBlameAnnotation(LInfo, FSettings);
-  Assert.IsTrue(LResult.StartsWith('abc1234  '), 'Should start with short hash prefix');
   Assert.Contains(LResult, '2025-06-15');
 end;
 
-procedure TFormatterTests.TestFormatIncludesShortHash;
-var
-  LInfo: TBlameLineInfo;
-  LResult: string;
-begin
-  LInfo := MakeLineInfo('John Doe', Now - 95, 'Fix bug');
-  LResult := FormatBlameAnnotation(LInfo, FSettings);
-  // Annotation should start with first 7 chars of the commit hash
-  Assert.AreEqual('abc1234', Copy(LResult, 1, 7), 'Should start with 7-char short hash');
-  // Followed by two spaces
-  Assert.AreEqual('  ', Copy(LResult, 8, 2), 'Hash should be followed by two spaces');
-end;
-
-procedure TFormatterTests.TestGetAnnotationHashLengthCommitted;
+procedure TFormatterTests.TestClickableLengthWithAuthor;
 var
   LInfo: TBlameLineInfo;
 begin
-  LInfo := MakeLineInfo('Author', Now, 'Summary');
-  Assert.AreEqual(7, GetAnnotationHashLength(LInfo), 'Committed line hash length should be 7 (hash only, no spaces)');
+  LInfo := MakeLineInfo('John Doe', Now, 'Summary');
+  Assert.AreEqual(Length('John Doe'),
+    GetAnnotationClickableLength(LInfo, FSettings),
+    'Clickable length should equal author name length');
 end;
 
-procedure TFormatterTests.TestGetAnnotationHashLengthUncommitted;
+procedure TFormatterTests.TestClickableLengthWithoutAuthor;
+var
+  LInfo: TBlameLineInfo;
+  LSettings: TDXBlameSettings;
+begin
+  LInfo := MakeLineInfo('Author', EncodeDate(2025, 6, 15), 'Summary');
+  LSettings := TDXBlameSettings.Create;
+  try
+    LSettings.ShowAuthor := False;
+    LSettings.DateFormat := dfAbsolute;
+    Assert.AreEqual(Length('2025-06-15'),
+      GetAnnotationClickableLength(LInfo, LSettings),
+      'Clickable length should equal date string length when author hidden');
+  finally
+    LSettings.Free;
+  end;
+end;
+
+procedure TFormatterTests.TestClickableLengthUncommitted;
 var
   LInfo: TBlameLineInfo;
 begin
   LInfo := MakeLineInfo('', Now, '', True);
-  Assert.AreEqual(0, GetAnnotationHashLength(LInfo), 'Uncommitted line hash length should be 0');
+  Assert.AreEqual(0,
+    GetAnnotationClickableLength(LInfo, FSettings),
+    'Uncommitted line should have zero clickable length');
 end;
 
 procedure TFormatterTests.TestDeriveColorFallbackIsGray;

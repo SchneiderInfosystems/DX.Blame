@@ -29,20 +29,16 @@ uses
 function FormatRelativeTime(ADateTime: TDateTime): string;
 
 /// <summary>Assembles blame annotation text from line info and settings.</summary>
-/// <remarks>
-/// For committed lines, the annotation is prefixed with the 7-char short hash
-/// followed by two spaces. Use GetAnnotationHashLength to determine how many
-/// characters of the result belong to the clickable hash prefix.
-/// </remarks>
 function FormatBlameAnnotation(const ALineInfo: TBlameLineInfo;
   const ASettings: TDXBlameSettings): string;
 
 /// <summary>
-/// Returns the length of the clickable hash prefix in the annotation text.
-/// Returns 0 for uncommitted lines (no hash shown), or 9 for committed lines
-/// (7-char hash + 2 spaces).
+/// Returns the character length of the clickable (underlined) portion of the
+/// annotation. This is the author name if shown, otherwise the date string.
+/// Returns 0 for uncommitted lines.
 /// </summary>
-function GetAnnotationHashLength(const ALineInfo: TBlameLineInfo): Integer;
+function GetAnnotationClickableLength(const ALineInfo: TBlameLineInfo;
+  const ASettings: TDXBlameSettings): Integer;
 
 /// <summary>Derives a muted annotation color from the editor background.</summary>
 function DeriveAnnotationColor: TColor;
@@ -96,18 +92,12 @@ function FormatBlameAnnotation(const ALineInfo: TBlameLineInfo;
   const ASettings: TDXBlameSettings): string;
 var
   LParts: TStringBuilder;
-  LShortHash: string;
 begin
   if ALineInfo.IsUncommitted then
     Exit(cNotCommittedAuthor);
 
   LParts := TStringBuilder.Create;
   try
-    // Always prefix with 7-char short hash for committed lines
-    LShortHash := Copy(ALineInfo.CommitHash, 1, 7);
-    LParts.Append(LShortHash);
-    LParts.Append('  ');
-
     if ASettings.ShowAuthor then
     begin
       LParts.Append(ALineInfo.Author);
@@ -136,12 +126,23 @@ begin
   end;
 end;
 
-function GetAnnotationHashLength(const ALineInfo: TBlameLineInfo): Integer;
+function GetAnnotationClickableLength(const ALineInfo: TBlameLineInfo;
+  const ASettings: TDXBlameSettings): Integer;
 begin
   if ALineInfo.IsUncommitted then
-    Result := 0
+    Exit(0);
+
+  if ASettings.ShowAuthor then
+    Result := Length(ALineInfo.Author)
   else
-    Result := 7; // 7-char hash only, no trailing spaces
+  begin
+    case ASettings.DateFormat of
+      dfRelative: Result := Length(FormatRelativeTime(ALineInfo.AuthorTime));
+      dfAbsolute: Result := Length(FormatDateTime('yyyy-mm-dd', ALineInfo.AuthorTime));
+    else
+      Result := 0;
+    end;
+  end;
 end;
 
 function DeriveAnnotationColor: TColor;

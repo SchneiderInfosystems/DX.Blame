@@ -320,7 +320,7 @@ begin
     LCanvas.Brush.Style := bsClear;
 
     // Two-part rendering: underlined hash prefix + italic rest
-    LHashLen := GetAnnotationHashLength(LBlameData.Lines[LLineIndex]);
+    LHashLen := GetAnnotationClickableLength(LBlameData.Lines[LLineIndex], BlameSettings);
     if LHashLen > 0 then
     begin
       // Draw hash prefix with underline + italic (hotlink style)
