@@ -35,6 +35,13 @@ function FormatBlameAnnotation(const ALineInfo: TBlameLineInfo;
 /// <summary>Derives a muted annotation color from the editor background.</summary>
 function DeriveAnnotationColor: TColor;
 
+/// <summary>
+/// Pure function that determines the display color for a diff line based on
+/// its prefix characters, theme mode, and a fallback default color.
+/// </summary>
+function GetDiffLineColor(const ALine: string; AIsDarkTheme: Boolean;
+  ADefaultColor: TColor): TColor;
+
 implementation
 
 uses
@@ -116,6 +123,41 @@ begin
   // Fallback for non-IDE context. The renderer (Plan 02) will override this
   // with INTACodeEditorServices.Options.BackgroundColor[atWhiteSpace] blending.
   Result := clGray;
+end;
+
+function GetDiffLineColor(const ALine: string; AIsDarkTheme: Boolean;
+  ADefaultColor: TColor): TColor;
+begin
+  Result := ADefaultColor;
+  if Length(ALine) = 0 then
+    Exit;
+
+  if ALine.StartsWith('@@') then
+  begin
+    if AIsDarkTheme then
+      Result := clSkyBlue
+    else
+      Result := clBlue;
+  end
+  else if ALine.StartsWith('+++') or ALine.StartsWith('---') then
+  begin
+    // File headers: keep default color
+    Result := ADefaultColor;
+  end
+  else if ALine[1] = '+' then
+  begin
+    if AIsDarkTheme then
+      Result := TColor(RGB(144, 238, 144))
+    else
+      Result := clGreen;
+  end
+  else if ALine[1] = '-' then
+  begin
+    if AIsDarkTheme then
+      Result := TColor(RGB(255, 150, 150))
+    else
+      Result := clRed;
+  end;
 end;
 
 end.

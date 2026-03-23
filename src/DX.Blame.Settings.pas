@@ -44,6 +44,8 @@ type
     FCustomColor: TColor;
     FDisplayScope: TDXBlameDisplayScope;
     FToggleHotkey: string;
+    FDiffDialogWidth: Integer;
+    FDiffDialogHeight: Integer;
   public
     constructor Create;
 
@@ -63,6 +65,8 @@ type
     property CustomColor: TColor read FCustomColor write FCustomColor;
     property DisplayScope: TDXBlameDisplayScope read FDisplayScope write FDisplayScope;
     property ToggleHotkey: string read FToggleHotkey write FToggleHotkey;
+    property DiffDialogWidth: Integer read FDiffDialogWidth write FDiffDialogWidth;
+    property DiffDialogHeight: Integer read FDiffDialogHeight write FDiffDialogHeight;
   end;
 
 /// <summary>Returns the singleton TDXBlameSettings instance (lazy-initialized).</summary>
@@ -98,6 +102,8 @@ begin
   FCustomColor := clGray;
   FDisplayScope := dsCurrentLine;
   FToggleHotkey := 'Ctrl+Alt+B';
+  FDiffDialogWidth := 800;
+  FDiffDialogHeight := 600;
   Load;
 end;
 
@@ -143,6 +149,9 @@ begin
     FCustomColor := TColor(LIni.ReadInteger('Appearance', 'CustomColor', Integer(clGray)));
 
     FToggleHotkey := LIni.ReadString('Hotkey', 'ToggleBlame', 'Ctrl+Alt+B');
+
+    FDiffDialogWidth := LIni.ReadInteger('DiffDialog', 'Width', 800);
+    FDiffDialogHeight := LIni.ReadInteger('DiffDialog', 'Height', 600);
   finally
     LIni.Free;
   end;
@@ -179,6 +188,9 @@ begin
     LIni.WriteInteger('Appearance', 'CustomColor', Integer(FCustomColor));
 
     LIni.WriteString('Hotkey', 'ToggleBlame', FToggleHotkey);
+
+    LIni.WriteInteger('DiffDialog', 'Width', FDiffDialogWidth);
+    LIni.WriteInteger('DiffDialog', 'Height', FDiffDialogHeight);
   finally
     LIni.Free;
   end;

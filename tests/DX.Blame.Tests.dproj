@@ -37,6 +37,9 @@
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base)'!=''">
         <SanitizedProjectName>DX_Blame_Tests</SanitizedProjectName>
+        <DCC_UnitSearchPath>..\src;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_ExeOutput>..\build\$(Platform)\$(Config)</DCC_ExeOutput>
+        <DCC_DcuOutput>..\build\$(Platform)\$(Config)\dcu</DCC_DcuOutput>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
         <AppDPIAwarenessMode>none</AppDPIAwarenessMode>
@@ -57,6 +60,8 @@
         <DCCReference Include="DX.Blame.Tests.Git.Discovery.pas"/>
         <DCCReference Include="DX.Blame.Tests.Settings.pas"/>
         <DCCReference Include="DX.Blame.Tests.Formatter.pas"/>
+        <DCCReference Include="DX.Blame.Tests.CommitDetail.pas"/>
+        <DCCReference Include="DX.Blame.Tests.DiffFormatter.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

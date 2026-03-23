@@ -27,7 +27,9 @@ uses
   DX.Blame.Tests.Cache in 'DX.Blame.Tests.Cache.pas',
   DX.Blame.Tests.Git.Discovery in 'DX.Blame.Tests.Git.Discovery.pas',
   DX.Blame.Tests.Settings in 'DX.Blame.Tests.Settings.pas',
-  DX.Blame.Tests.Formatter in 'DX.Blame.Tests.Formatter.pas';
+  DX.Blame.Tests.Formatter in 'DX.Blame.Tests.Formatter.pas',
+  DX.Blame.Tests.CommitDetail in 'DX.Blame.Tests.CommitDetail.pas',
+  DX.Blame.Tests.DiffFormatter in 'DX.Blame.Tests.DiffFormatter.pas';
 
 var
   LRunner: ITestRunner;

@@ -46,6 +46,12 @@ type
     procedure TestLoadNonExistentIniReturnsDefaults;
     [Test]
     procedure TestSingletonReturnsSameInstance;
+    [Test]
+    procedure TestDiffDialogWidth_DefaultsTo800;
+    [Test]
+    procedure TestDiffDialogHeight_DefaultsTo600;
+    [Test]
+    procedure TestDiffDialogSize_RoundTrips;
   end;
 
 implementation
@@ -205,6 +211,52 @@ begin
   LFirst := BlameSettings;
   LSecond := BlameSettings;
   Assert.AreSame(LFirst, LSecond, 'BlameSettings should return the same singleton instance');
+end;
+
+procedure TSettingsTests.TestDiffDialogWidth_DefaultsTo800;
+begin
+  Assert.AreEqual(800, FSettings.DiffDialogWidth, 'DiffDialogWidth should default to 800');
+end;
+
+procedure TSettingsTests.TestDiffDialogHeight_DefaultsTo600;
+begin
+  Assert.AreEqual(600, FSettings.DiffDialogHeight, 'DiffDialogHeight should default to 600');
+end;
+
+procedure TSettingsTests.TestDiffDialogSize_RoundTrips;
+var
+  LLoaded: TDXBlameSettings;
+  LIni: TIniFile;
+begin
+  FSettings.DiffDialogWidth := 1024;
+  FSettings.DiffDialogHeight := 768;
+
+  // Save to temp INI manually (same pattern as SaveToTemp but including DiffDialog section)
+  LIni := TIniFile.Create(FTempIniPath);
+  try
+    LIni.WriteInteger('DiffDialog', 'Width', FSettings.DiffDialogWidth);
+    LIni.WriteInteger('DiffDialog', 'Height', FSettings.DiffDialogHeight);
+  finally
+    LIni.Free;
+  end;
+
+  // Create a new settings object and load from temp
+  LLoaded := TDXBlameSettings.Create;
+  try
+    // Read DiffDialog section from temp file
+    LIni := TIniFile.Create(FTempIniPath);
+    try
+      LLoaded.DiffDialogWidth := LIni.ReadInteger('DiffDialog', 'Width', 800);
+      LLoaded.DiffDialogHeight := LIni.ReadInteger('DiffDialog', 'Height', 600);
+    finally
+      LIni.Free;
+    end;
+
+    Assert.AreEqual(1024, LLoaded.DiffDialogWidth, 'DiffDialogWidth round-trip failed');
+    Assert.AreEqual(768, LLoaded.DiffDialogHeight, 'DiffDialogHeight round-trip failed');
+  finally
+    LLoaded.Free;
+  end;
 end;
 
 initialization

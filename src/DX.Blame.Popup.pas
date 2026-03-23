@@ -51,6 +51,9 @@ type
     FFullHash: string;
     FOriginalHashText: string;
     FOnShowDiffClick: TNotifyEvent;
+    FRepoRoot: string;
+    FRelativeFilePath: string;
+    FLineInfo: TBlameLineInfo;
 
     procedure DoHashClick(ASender: TObject);
     procedure DoCopiedTimerTick(ASender: TObject);
@@ -89,7 +92,8 @@ uses
   Vcl.Clipbrd,
   System.Math,
   ToolsAPI,
-  ToolsAPI.Editor;
+  ToolsAPI.Editor,
+  DX.Blame.Diff.Form;
 
 const
   cPopupWidth = 400;
@@ -230,6 +234,12 @@ end;
 
 procedure TDXBlamePopup.DoShowDiffClick(ASender: TObject);
 begin
+  if FFullHash = '' then
+    Exit;
+
+  Hide;
+  TFormDXBlameDiff.ShowDiff(FFullHash, FRepoRoot, FRelativeFilePath, FLineInfo);
+
   if Assigned(FOnShowDiffClick) then
     FOnShowDiffClick(ASender);
 end;
@@ -257,6 +267,11 @@ var
   LLeft, LTop: Integer;
 begin
   ApplyThemeColors;
+
+  // Store context for Show Diff button
+  FRepoRoot := ARepoRoot;
+  FRelativeFilePath := ARelativeFilePath;
+  FLineInfo := ALineInfo;
 
   if ALineInfo.IsUncommitted then
   begin
@@ -344,6 +359,11 @@ var
   LDetail: TCommitDetail;
 begin
   ApplyThemeColors;
+
+  // Store context for Show Diff button
+  FRepoRoot := ARepoRoot;
+  FRelativeFilePath := ARelativeFilePath;
+  FLineInfo := ALineInfo;
 
   if ALineInfo.IsUncommitted then
   begin
