@@ -1,8 +1,12 @@
 ---
 phase: 03-inline-rendering-and-ux
-verified: 2026-03-20T16:00:00Z
-status: human_needed
+verified: 2026-03-23T12:00:00Z
+status: complete
 score: 8/8 must-haves verified
+human_verified: 2026-03-23
+human_fixes:
+  - "Menu checkmark now syncs via SyncEnableBlameCheckmark (called from both menu and hotkey toggle paths)"
+  - "Renderer skips annotation when buffer IsModified (prevents stale blame data showing on edited lines)"
 re_verification:
   previous_status: gaps_found
   previous_score: 6/8

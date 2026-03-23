@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Package Foundation** - Installable BPL with stable OTA lifecycle and clean unload (completed 2026-03-19)
 - [ ] **Phase 2: Blame Data Pipeline** - Async git blame execution, parsing, and thread-safe caching
-- [ ] **Phase 3: Inline Rendering and UX** - Visible blame annotations with toggle, navigation, and configuration
+- [x] **Phase 3: Inline Rendering and UX** - Visible blame annotations with toggle, navigation, and configuration (completed 2026-03-23)
 - [ ] **Phase 4: Tooltip and Commit Detail** - Hover tooltip with full commit info and diff detail view
 
 ## Phase Details
@@ -59,13 +59,13 @@ Plans:
   1. User sees author and relative time (e.g. "John Doe, 3 months ago") rendered after the last character of the current line
   2. User can toggle blame display on/off via IDE menu entry and via a configurable hotkey
   3. User can configure display format (author on/off, date format relative/absolute, max length) and blame text color, or color adapts to the current IDE theme automatically
-  4. User can navigate to the previous revision (blame on parent commit) for the current line
+  4. User can navigate to the annotated revision (file opened at the commit shown in the annotation) for the current line
 **Plans**: 3 plans
 
 Plans:
 - [x] 03-01-PLAN.md — Settings persistence (INI) and annotation formatter with unit tests
-- [ ] 03-02-PLAN.md — Editor renderer (INTACodeEditorEvents), menu toggle, and keyboard shortcut
-- [ ] 03-03-PLAN.md — Settings configuration dialog and parent revision navigation
+- [x] 03-02-PLAN.md — Editor renderer (INTACodeEditorEvents), menu toggle, and keyboard shortcut
+- [x] 03-03-PLAN.md — Settings configuration dialog and parent revision navigation
 
 ### Phase 4: Tooltip and Commit Detail
 **Goal**: Users get full commit context on hover and can drill into the complete diff without leaving the IDE
@@ -88,5 +88,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 |-------|----------------|--------|-----------|
 | 1. Package Foundation | 2/2 | Complete   | 2026-03-19 |
 | 2. Blame Data Pipeline | 3/3 | Complete | 2026-03-19 |
-| 3. Inline Rendering and UX | 1/3 | In progress | - |
+| 3. Inline Rendering and UX | 3/3 | Complete | 2026-03-23 |
 | 4. Tooltip and Commit Detail | 0/? | Not started | - |

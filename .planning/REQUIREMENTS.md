@@ -9,7 +9,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Blame Core
 
-- [ ] **BLAME-01**: User sieht inline am Zeilenende den Autor und die relative Zeit der letzten Änderung
+- [x] **BLAME-01**: User sieht inline am Zeilenende den Autor und die relative Zeit der letzten Änderung
 - [x] **BLAME-02**: Plugin erkennt automatisch ob das aktuelle Projekt in einem Git-Repository liegt
 - [x] **BLAME-03**: Blame wird beim Öffnen einer Datei automatisch asynchron ausgeführt
 - [x] **BLAME-04**: Git blame wird per CLI (`git blame --porcelain`) in einem Hintergrund-Thread ausgeführt
@@ -28,9 +28,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### UX & Integration
 
-- [ ] **UX-01**: User kann Blame per Menü-Eintrag ein- und ausschalten
-- [ ] **UX-02**: User kann Blame per konfigurierbarem Hotkey ein- und ausschalten
-- [ ] **UX-03**: User kann zur annotierten Revision navigieren (Datei wird zum Commit geöffnet, den die Annotation anzeigt)
+- [x] **UX-01**: User kann Blame per Menü-Eintrag ein- und ausschalten
+- [x] **UX-02**: User kann Blame per konfigurierbarem Hotkey ein- und ausschalten
+- [x] **UX-03**: User kann zur annotierten Revision navigieren (Datei wird zum Commit geöffnet, den die Annotation anzeigt)
 - [x] **UX-04**: Plugin wird als Design-Time Package (BPL) installiert und unterstützt Delphi 11.3+, 12 und 13
 
 ## v2 Requirements
@@ -59,7 +59,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BLAME-01 | Phase 3 | Pending |
+| BLAME-01 | Phase 3 | Complete |
 | BLAME-02 | Phase 2 | Complete |
 | BLAME-03 | Phase 2 | Complete |
 | BLAME-04 | Phase 2 | Complete |
@@ -69,9 +69,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TTIP-02 | Phase 4 | Pending |
 | CONF-01 | Phase 3 | Complete |
 | CONF-02 | Phase 3 | Complete |
-| UX-01 | Phase 3 | Pending |
-| UX-02 | Phase 3 | Pending |
-| UX-03 | Phase 3 | Pending |
+| UX-01 | Phase 3 | Complete |
+| UX-02 | Phase 3 | Complete |
+| UX-03 | Phase 3 | Complete |
 | UX-04 | Phase 1 | Complete |
 
 **Coverage:**
