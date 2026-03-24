@@ -110,6 +110,6 @@ Plans:
 | 5. Tech Debt Cleanup | v1.0 | 1/1 | Complete | 2026-03-23 |
 | 6. VCS Abstraction Foundation | v1.1 | 2/2 | Complete | 2026-03-24 |
 | 7. Engine VCS Dispatch | v1.1 | 2/2 | Complete | 2026-03-24 |
-| 8. VCS Discovery | v1.1 | 0/2 | Not started | - |
+| 8. VCS Discovery | v1.1 | 1/2 | In Progress | - |
 | 9. Mercurial Provider | v1.1 | 0/0 | Not started | - |
 | 10. Settings and TortoiseHg Integration | v1.1 | 0/0 | Not started | - |

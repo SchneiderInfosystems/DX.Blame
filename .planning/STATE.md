@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Mercurial Support
 status: completed
-stopped_at: Completed 07-02-PLAN.md (Phase 07 complete)
+stopped_at: Completed 08-01-PLAN.md
 last_updated: "2026-03-24T09:32:57.292Z"
-last_activity: 2026-03-24 — Completed 07-02 Consumer unit VCS migration
+last_activity: 2026-03-24 — Completed 08-01 Mercurial discovery infrastructure
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 4
-  completed_plans: 4
-  percent: 80
+  completed_plans: 5
+  percent: 82
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-23)
 
 **Core value:** Der Entwickler sieht auf einen Blick, wer eine Codezeile zuletzt geaendert hat und wann, ohne die IDE verlassen zu muessen.
-**Current focus:** v1.1 Mercurial Support — Phase 7 in progress (Engine VCS Dispatch)
+**Current focus:** v1.1 Mercurial Support — Phase 8 in progress (VCS Discovery)
 
 ## Current Position
 
-Phase: 7 of 10 (Engine VCS Dispatch)
-Plan: 2 of 2 complete
-Status: Phase Complete
-Last activity: 2026-03-24 — Completed 07-02 Consumer unit VCS migration
+Phase: 8 of 10 (VCS Discovery)
+Plan: 1 of 2 complete
+Status: In Progress
+Last activity: 2026-03-24 — Completed 08-01 Mercurial discovery infrastructure
 
-Progress: [████████░░] 80%
+Progress: [████████░░] 82%
 
 ## Performance Metrics
 
@@ -50,6 +50,7 @@ Progress: [████████░░] 80%
 | Phase 06 P02 | 5min | 2 tasks | 10 files |
 | Phase 07 P01 | 4min | 2 tasks | 3 files |
 | Phase 07 P02 | 3min | 2 tasks | 3 files |
+| Phase 08 P01 | 3min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -63,6 +64,9 @@ v1.1 research completed with HIGH confidence across all areas.
 - [Phase 07]: TBlameThread holds IVCSProvider interface reference for correct ref counting
 - [Phase 07]: FetchCommitDetailAsync takes IVCSProvider as first parameter (breaking change for Plan 02)
 - [Phase 07]: All consumer units (Navigation, Popup, Diff.Form) access VCS exclusively through BlameEngine.Provider
+- [Phase 08]: No registry lookup for TortoiseHg — PATH + default dirs cover standard installs
+- [Phase 08]: No fallback when hg.exe missing — Mercurial without executable is unusable
+- [Phase 08]: Uncommitted hash uses Mercurial convention ffffffffffff (12 hex f chars)
 
 ### Pending Todos
 
@@ -75,6 +79,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-24T09:28:06Z
-Stopped at: Completed 07-02-PLAN.md (Phase 07 complete)
-Resume file: Phase 8 planning needed
+Last session: 2026-03-24T10:48:46Z
+Stopped at: Completed 08-01-PLAN.md
+Resume file: .planning/phases/08-vcs-discovery/08-02-PLAN.md
