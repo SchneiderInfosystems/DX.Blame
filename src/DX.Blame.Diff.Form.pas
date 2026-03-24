@@ -78,6 +78,8 @@ uses
   Winapi.Messages,
   ToolsAPI,
   ToolsAPI.Editor,
+  DX.Blame.VCS.Provider,
+  DX.Blame.Engine,
   DX.Blame.Settings,
   DX.Blame.Formatter;
 
@@ -121,8 +123,8 @@ begin
     else
     begin
       LForm.LabelLoading.Visible := True;
-      FetchCommitDetailAsync(ACommitHash, ARepoRoot, ARelativeFilePath,
-        LForm.HandleCommitDetailComplete);
+      FetchCommitDetailAsync(BlameEngine.Provider, ACommitHash, ARepoRoot,
+        ARelativeFilePath, LForm.HandleCommitDetailComplete);
     end;
 
     LForm.ShowModal;
@@ -178,8 +180,8 @@ begin
         LoadDiffIntoRichEdit(FFullDiff);
       end
       else
-        FetchCommitDetailAsync(FCommitHash, FRepoRoot, FRelativeFilePath,
-          HandleCommitDetailComplete);
+        FetchCommitDetailAsync(BlameEngine.Provider, FCommitHash, FRepoRoot,
+          FRelativeFilePath, HandleCommitDetailComplete);
     end;
   end
   else

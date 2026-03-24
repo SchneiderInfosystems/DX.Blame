@@ -34,7 +34,7 @@ uses
   Winapi.Windows,
   Winapi.Messages,
   DX.Blame.VCS.Types,
-  DX.Blame.Git.Types,
+  DX.Blame.VCS.Provider,
   DX.Blame.CommitDetail;
 
 type
@@ -92,6 +92,7 @@ uses
   System.Math,
   ToolsAPI,
   ToolsAPI.Editor,
+  DX.Blame.Engine,
   DX.Blame.Diff.Form;
 
 const
@@ -191,7 +192,10 @@ begin
     FFullHash := '';
     HashLabel.Caption := '';
     HashLabel.Visible := False;
-    AuthorLabel.Caption := cNotCommittedAuthor;
+    if BlameEngine.Provider <> nil then
+      AuthorLabel.Caption := BlameEngine.Provider.GetUncommittedAuthor
+    else
+      AuthorLabel.Caption := 'Not Committed';
     DateLabel.Caption := '';
     DateLabel.Visible := False;
     MessageMemo.Text := 'This line has not been committed yet.';
@@ -233,7 +237,7 @@ begin
       LoadingLabel.Visible := True;
       MessageMemo.Visible := False;
       MessageMemo.Text := '';
-      FetchCommitDetailAsync(ALineInfo.CommitHash, ARepoRoot,
+      FetchCommitDetailAsync(BlameEngine.Provider, ALineInfo.CommitHash, ARepoRoot,
         ARelativeFilePath, HandleCommitDetailComplete);
     end;
 
@@ -278,7 +282,10 @@ begin
     FFullHash := '';
     HashLabel.Caption := '';
     HashLabel.Visible := False;
-    AuthorLabel.Caption := cNotCommittedAuthor;
+    if BlameEngine.Provider <> nil then
+      AuthorLabel.Caption := BlameEngine.Provider.GetUncommittedAuthor
+    else
+      AuthorLabel.Caption := 'Not Committed';
     DateLabel.Caption := '';
     DateLabel.Visible := False;
     MessageMemo.Text := 'This line has not been committed yet.';
@@ -307,7 +314,7 @@ begin
       LoadingLabel.Visible := True;
       MessageMemo.Visible := False;
       MessageMemo.Text := '';
-      FetchCommitDetailAsync(ALineInfo.CommitHash, ARepoRoot,
+      FetchCommitDetailAsync(BlameEngine.Provider, ALineInfo.CommitHash, ARepoRoot,
         ARelativeFilePath, HandleCommitDetailComplete);
     end;
   end;

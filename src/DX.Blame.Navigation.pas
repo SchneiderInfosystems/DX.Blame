@@ -54,9 +54,7 @@ uses
   Vcl.Forms,
   ToolsAPI,
   DX.Blame.VCS.Types,
-  DX.Blame.Git.Types,
-  DX.Blame.Git.Discovery,
-  DX.Blame.Git.Process,
+  DX.Blame.VCS.Provider,
   DX.Blame.Engine,
   DX.Blame.Formatter,
   DX.Blame.Settings;
@@ -82,30 +80,19 @@ var
 /// </summary>
 function GetFileAtCommit(const ACommitHash, ARelativePath, ARepoRoot: string): string;
 var
-  LGitPath: string;
-  LProcess: TGitProcess;
-  LOutput: string;
-  LExitCode: Integer;
+  LContent: string;
 begin
   Result := '';
-
-  LGitPath := FindGitExecutable;
-  if LGitPath = '' then
+  if BlameEngine.Provider = nil then
     Exit;
-
-  LProcess := TGitProcess.Create(LGitPath, ARepoRoot);
-  try
-    LExitCode := LProcess.Execute('show ' + ACommitHash + ':' + ARelativePath, LOutput);
-    if LExitCode = 0 then
-      Result := LOutput;
-  finally
-    LProcess.Free;
-  end;
+  if BlameEngine.Provider.GetFileAtRevision(ARepoRoot, ACommitHash, ARelativePath, LContent) then
+    Result := LContent;
 end;
 
 function IsRevisionAvailable(const ACommitHash: string): Boolean;
 begin
-  Result := (ACommitHash <> '') and (ACommitHash <> cUncommittedHash);
+  Result := (ACommitHash <> '') and (BlameEngine.Provider <> nil) and
+    (ACommitHash <> BlameEngine.Provider.GetUncommittedHash);
 end;
 
 /// <summary>
