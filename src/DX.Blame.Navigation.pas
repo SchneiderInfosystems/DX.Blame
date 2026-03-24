@@ -55,9 +55,12 @@ uses
   ToolsAPI,
   DX.Blame.VCS.Types,
   DX.Blame.VCS.Provider,
+  Winapi.Windows,
+  Winapi.ShellAPI,
   DX.Blame.Engine,
   DX.Blame.Formatter,
-  DX.Blame.Settings;
+  DX.Blame.Settings,
+  DX.Blame.Hg.Discovery;
 
 type
   /// <summary>
@@ -68,11 +71,16 @@ type
   public
     procedure OnRevisionClick(Sender: TObject);
     procedure OnEditorPopup(Sender: TObject);
+    procedure OnThgAnnotateClick(Sender: TObject);
+    procedure OnThgLogClick(Sender: TObject);
   end;
 
 var
   GContextMenuItem: TMenuItem;
   GSeparatorItem: TMenuItem;
+  GThgSeparatorItem: TMenuItem;
+  GThgAnnotateItem: TMenuItem;
+  GThgLogItem: TMenuItem;
   GMenuHandler: TNavigationMenuHandler;
 
 /// <summary>
@@ -208,6 +216,56 @@ begin
   NavigateToRevision(LFileName, LLineInfo.CommitHash, BlameEngine.RepoRoot);
 end;
 
+/// <summary>
+/// Launches thg.exe with the given command, repo root, and file path.
+/// Fire-and-forget via ShellExecute -- does not wait for thg to exit.
+/// </summary>
+procedure LaunchThg(const ACommand, ARepoRoot, AFilePath: string);
+var
+  LThgPath: string;
+  LArgs: string;
+begin
+  LThgPath := FindThgExecutable;
+  if LThgPath = '' then
+    Exit;
+  LArgs := ACommand + ' -R "' + ARepoRoot + '" "' + AFilePath + '"';
+  ShellExecute(0, 'open', PChar(LThgPath), PChar(LArgs), PChar(ARepoRoot), SW_SHOWNORMAL);
+end;
+
+procedure TNavigationMenuHandler.OnThgAnnotateClick(Sender: TObject);
+var
+  LEditorServices: IOTAEditorServices;
+  LTopView: IOTAEditView;
+  LFileName: string;
+begin
+  if not BlameEngine.VCSAvailable then
+    Exit;
+  if not Supports(BorlandIDEServices, IOTAEditorServices, LEditorServices) then
+    Exit;
+  LTopView := LEditorServices.TopView;
+  if LTopView = nil then
+    Exit;
+  LFileName := LTopView.Buffer.FileName;
+  LaunchThg('annotate', BlameEngine.RepoRoot, LFileName);
+end;
+
+procedure TNavigationMenuHandler.OnThgLogClick(Sender: TObject);
+var
+  LEditorServices: IOTAEditorServices;
+  LTopView: IOTAEditView;
+  LFileName: string;
+begin
+  if not BlameEngine.VCSAvailable then
+    Exit;
+  if not Supports(BorlandIDEServices, IOTAEditorServices, LEditorServices) then
+    Exit;
+  LTopView := LEditorServices.TopView;
+  if LTopView = nil then
+    Exit;
+  LFileName := LTopView.Buffer.FileName;
+  LaunchThg('log', BlameEngine.RepoRoot, LFileName);
+end;
+
 var
   GHookedPopup: TPopupMenu;
   GOriginalOnPopup: TNotifyEvent;
@@ -219,6 +277,9 @@ var
 procedure RemoveOurItems;
 begin
   // Free in reverse order; items remove themselves from parent
+  FreeAndNil(GThgLogItem);
+  FreeAndNil(GThgAnnotateItem);
+  FreeAndNil(GThgSeparatorItem);
   FreeAndNil(GContextMenuItem);
   FreeAndNil(GSeparatorItem);
 end;
@@ -254,6 +315,26 @@ begin
     GContextMenuItem.Enabled := LAvailable;
     GContextMenuItem.OnClick := Self.OnRevisionClick;
     TPopupMenu(Sender).Items.Add(GContextMenuItem);
+
+    // TortoiseHg items: only when Mercurial is active and thg.exe is available
+    if (BlameEngine.Provider <> nil) and
+       SameText(BlameEngine.Provider.GetDisplayName, 'Mercurial') and
+       (FindThgExecutable <> '') then
+    begin
+      GThgSeparatorItem := TMenuItem.Create(nil);
+      GThgSeparatorItem.Caption := '-';
+      TPopupMenu(Sender).Items.Add(GThgSeparatorItem);
+
+      GThgAnnotateItem := TMenuItem.Create(nil);
+      GThgAnnotateItem.Caption := 'Open in TortoiseHg Annotate';
+      GThgAnnotateItem.OnClick := Self.OnThgAnnotateClick;
+      TPopupMenu(Sender).Items.Add(GThgAnnotateItem);
+
+      GThgLogItem := TMenuItem.Create(nil);
+      GThgLogItem.Caption := 'Open in TortoiseHg Log';
+      GThgLogItem.OnClick := Self.OnThgLogClick;
+      TPopupMenu(Sender).Items.Add(GThgLogItem);
+    end;
   end;
 
   // Chain to original OnPopup handler
