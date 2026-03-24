@@ -59,6 +59,23 @@
         <DCCReference Include="DX.Blame.Git.Discovery.pas"/>
         <DCCReference Include="DX.Blame.Git.Process.pas"/>
         <DCCReference Include="DX.Blame.Git.Blame.pas"/>
+        <DCCReference Include="DX.Blame.Hg.Discovery.pas"/>
+        <DCCReference Include="DX.Blame.Hg.Types.pas"/>
+        <DCCReference Include="DX.Blame.Hg.Process.pas"/>
+        <DCCReference Include="DX.Blame.Hg.Blame.pas"/>
+        <DCCReference Include="DX.Blame.Hg.Provider.pas"/>
+        <DCCReference Include="DX.Blame.VCS.Types.pas"/>
+        <DCCReference Include="DX.Blame.VCS.Process.pas"/>
+        <DCCReference Include="DX.Blame.VCS.Provider.pas"/>
+        <DCCReference Include="DX.Blame.VCS.Discovery.pas"/>
+        <DCCReference Include="DX.Blame.Git.Provider.pas"/>
+        <DCCReference Include="DX.Blame.CommitDetail.pas"/>
+        <DCCReference Include="DX.Blame.Popup.pas">
+            <Form>DXBlamePopup</Form>
+        </DCCReference>
+        <DCCReference Include="DX.Blame.Diff.Form.pas">
+            <Form>FormDXBlameDiff</Form>
+        </DCCReference>
         <DCCReference Include="DX.Blame.Cache.pas"/>
         <DCCReference Include="DX.Blame.Settings.pas"/>
         <DCCReference Include="DX.Blame.Formatter.pas"/>

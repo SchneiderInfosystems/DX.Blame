@@ -58,6 +58,7 @@ var
   LRawLines: TArray<string>;
   LList: TList<TBlameLineInfo>;
   LRawLine: string;
+  LLine: string;
   LInfo: TBlameLineInfo;
   LPos1, LPos2, LPos3, LPos4, LPos5: Integer;
   LDateStr: string;
@@ -77,25 +78,27 @@ begin
     begin
       // Trim trailing CR if present
       if (LRawLine <> '') and (LRawLine[Length(LRawLine)] = #13) then
-        LRawLine := Copy(LRawLine, 1, Length(LRawLine) - 1);
+        LLine := Copy(LRawLine, 1, Length(LRawLine) - 1)
+      else
+        LLine := LRawLine;
 
       // Skip lines shorter than minimum (40 chars hash + 1 pipe)
-      if Length(LRawLine) < 42 then
+      if Length(LLine) < 42 then
         Continue;
 
       // Field 1: node hash at positions 1..40, pipe expected at position 41
       LPos1 := 41;
-      if LRawLine[LPos1] <> '|' then
+      if LLine[LPos1] <> '|' then
         Continue; // Malformed line
 
       FillChar(LInfo, SizeOf(LInfo), 0);
-      LInfo.CommitHash := Copy(LRawLine, 1, 40);
+      LInfo.CommitHash := Copy(LLine, 1, 40);
 
       // Field 2: user (from pos 42 to next '|')
-      LPos2 := Pos('|', LRawLine, LPos1 + 1);
+      LPos2 := Pos('|', LLine, LPos1 + 1);
       if LPos2 = 0 then
         Continue;
-      LUser := Copy(LRawLine, LPos1 + 1, LPos2 - LPos1 - 1);
+      LUser := Copy(LLine, LPos1 + 1, LPos2 - LPos1 - 1);
 
       // Split "Name <email>" into Author and AuthorMail
       LAngleBracket := Pos('<', LUser);
@@ -108,10 +111,10 @@ begin
         LInfo.Author := Trim(LUser);
 
       // Field 3: hgdate "timestamp offset" (from pos after second '|' to next '|')
-      LPos3 := Pos('|', LRawLine, LPos2 + 1);
+      LPos3 := Pos('|', LLine, LPos2 + 1);
       if LPos3 = 0 then
         Continue;
-      LDateStr := Copy(LRawLine, LPos2 + 1, LPos3 - LPos2 - 1);
+      LDateStr := Copy(LLine, LPos2 + 1, LPos3 - LPos2 - 1);
       // hgdate format: "1679000000 -18000" -- first token is Unix timestamp
       LSpacePos := Pos(' ', LDateStr);
       if LSpacePos > 0 then
@@ -121,17 +124,17 @@ begin
       LInfo.AuthorTime := UnixToDateTime(LTimestamp, False);
 
       // Field 4: lineno (from pos after third '|' to next '|')
-      LPos4 := Pos('|', LRawLine, LPos3 + 1);
+      LPos4 := Pos('|', LLine, LPos3 + 1);
       if LPos4 = 0 then
         Continue;
       LInfo.FinalLine := StrToIntDef(
-        Copy(LRawLine, LPos3 + 1, LPos4 - LPos3 - 1), 0);
+        Copy(LLine, LPos3 + 1, LPos4 - LPos3 - 1), 0);
       LInfo.OriginalLine := LInfo.FinalLine; // Hg does not distinguish
 
       // Field 5: desc|firstline (from pos after fourth '|' to next '|')
-      LPos5 := Pos('|', LRawLine, LPos4 + 1);
+      LPos5 := Pos('|', LLine, LPos4 + 1);
       if LPos5 > 0 then
-        LInfo.Summary := Copy(LRawLine, LPos4 + 1, LPos5 - LPos4 - 1)
+        LInfo.Summary := Copy(LLine, LPos4 + 1, LPos5 - LPos4 - 1)
       else
         LInfo.Summary := ''; // No summary field found
 
