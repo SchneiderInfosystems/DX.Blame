@@ -3,7 +3,7 @@ object FormDXBlameSettings: TFormDXBlameSettings
   Top = 0
   BorderStyle = bsDialog
   Caption = 'DX Blame Settings'
-  ClientHeight = 470
+  ClientHeight = 535
   ClientWidth = 400
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -158,13 +158,41 @@ object FormDXBlameSettings: TFormDXBlameSettings
       TabOrder = 1
     end
   end
-  object GroupBoxHotkey: TGroupBox
+  object GroupBoxVCS: TGroupBox
     Left = 12
     Top = 340
     Width = 376
+    Height = 55
+    Caption = ' Version Control '
+    TabOrder = 3
+    object LabelVCSPreference: TLabel
+      Left = 16
+      Top = 22
+      Width = 68
+      Height = 15
+      Caption = 'VCS Backend:'
+    end
+    object ComboBoxVCSPreference: TComboBox
+      Left = 100
+      Top = 19
+      Width = 256
+      Height = 23
+      Style = csDropDownList
+      ItemIndex = 0
+      TabOrder = 0
+      Items.Strings = (
+        'Auto (detect from repository)'
+        'Git'
+        'Mercurial')
+    end
+  end
+  object GroupBoxHotkey: TGroupBox
+    Left = 12
+    Top = 405
+    Width = 376
     Height = 70
     Caption = ' Hotkey '
-    TabOrder = 3
+    TabOrder = 4
     object LabelHotkeyValue: TLabel
       Left = 16
       Top = 24
@@ -194,24 +222,24 @@ object FormDXBlameSettings: TFormDXBlameSettings
   end
   object ButtonOK: TButton
     Left = 216
-    Top = 430
+    Top = 495
     Width = 80
     Height = 28
     Caption = 'OK'
     Default = True
     ModalResult = 1
-    TabOrder = 4
+    TabOrder = 5
     OnClick = ButtonOKClick
   end
   object ButtonCancel: TButton
     Left = 308
-    Top = 430
+    Top = 495
     Width = 80
     Height = 28
     Cancel = True
     Caption = 'Cancel'
     ModalResult = 2
-    TabOrder = 5
+    TabOrder = 6
     OnClick = ButtonCancelClick
   end
   object ColorDialog: TColorDialog

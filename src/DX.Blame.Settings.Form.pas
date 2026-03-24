@@ -52,6 +52,9 @@ type
     GroupBoxDisplay: TGroupBox;
     RadioButtonCurrentLine: TRadioButton;
     RadioButtonAllLines: TRadioButton;
+    GroupBoxVCS: TGroupBox;
+    LabelVCSPreference: TLabel;
+    ComboBoxVCSPreference: TComboBox;
     GroupBoxHotkey: TGroupBox;
     LabelHotkeyValue: TLabel;
     LabelHotkeyInfo: TLabel;
@@ -82,7 +85,9 @@ implementation
 {$R *.dfm}
 
 uses
+  ToolsAPI,
   DX.Blame.Settings,
+  DX.Blame.Engine,
   DX.Blame.Renderer;
 
 { TFormDXBlameSettings }
@@ -130,13 +135,20 @@ begin
     RadioButtonAllLines.Checked := True;
 
   LabelHotkeyValue.Caption := LSettings.ToggleHotkey;
+
+  ComboBoxVCSPreference.ItemIndex := Ord(LSettings.VCSPreference);
 end;
 
 procedure TFormDXBlameSettings.SaveToSettings;
 var
   LSettings: TDXBlameSettings;
+  LVCSChanged: Boolean;
+  LModuleServices: IOTAModuleServices;
 begin
   LSettings := BlameSettings;
+
+  // Detect if VCS preference changed before saving
+  LVCSChanged := LSettings.VCSPreference <> TDXBlameVCSPreference(ComboBoxVCSPreference.ItemIndex);
 
   LSettings.ShowAuthor := CheckBoxShowAuthor.Checked;
   LSettings.DateFormat := TDXBlameDateFormat(ComboBoxDateFormat.ItemIndex);
@@ -150,9 +162,21 @@ begin
   else
     LSettings.DisplayScope := dsCurrentLine;
 
+  LSettings.VCSPreference := TDXBlameVCSPreference(ComboBoxVCSPreference.ItemIndex);
+
   LSettings.Save;
 
   InvalidateAllEditors;
+
+  // Trigger VCS re-detection when preference changed
+  if LVCSChanged then
+  begin
+    if Supports(BorlandIDEServices, IOTAModuleServices, LModuleServices) then
+      if LModuleServices.MainProjectGroup <> nil then
+        if LModuleServices.MainProjectGroup.ActiveProject <> nil then
+          BlameEngine.OnProjectSwitch(
+            LModuleServices.MainProjectGroup.ActiveProject.FileName);
+  end;
 end;
 
 procedure TFormDXBlameSettings.ButtonOKClick(Sender: TObject);
