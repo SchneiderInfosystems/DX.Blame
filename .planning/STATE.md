@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Mercurial Support
 status: in-progress
-stopped_at: Completed 07-01-PLAN.md
-last_updated: "2026-03-24T09:24:00Z"
-last_activity: 2026-03-24 — Completed 07-01 Engine VCS dispatch refactoring
+stopped_at: Completed 07-02-PLAN.md
+last_updated: "2026-03-24T09:28:06Z"
+last_activity: 2026-03-24 — Completed 07-02 Consumer unit VCS migration
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 4
-  completed_plans: 3
-  percent: 75
+  completed_plans: 4
+  percent: 80
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-23)
 ## Current Position
 
 Phase: 7 of 10 (Engine VCS Dispatch)
-Plan: 1 of 2 complete
-Status: In Progress
-Last activity: 2026-03-24 — Completed 07-01 Engine VCS dispatch refactoring
+Plan: 2 of 2 complete
+Status: Phase Complete
+Last activity: 2026-03-24 — Completed 07-02 Consumer unit VCS migration
 
-Progress: [███████░░░] 75%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
@@ -49,6 +49,7 @@ Progress: [███████░░░] 75%
 | Phase 06 P01 | 3min | 2 tasks | 7 files |
 | Phase 06 P02 | 5min | 2 tasks | 10 files |
 | Phase 07 P01 | 4min | 2 tasks | 3 files |
+| Phase 07 P02 | 3min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -61,6 +62,7 @@ v1.1 research completed with HIGH confidence across all areas.
 - [Phase 06]: TGitProvider delegates to existing Git units rather than reimplementing logic
 - [Phase 07]: TBlameThread holds IVCSProvider interface reference for correct ref counting
 - [Phase 07]: FetchCommitDetailAsync takes IVCSProvider as first parameter (breaking change for Plan 02)
+- [Phase 07]: All consumer units (Navigation, Popup, Diff.Form) access VCS exclusively through BlameEngine.Provider
 
 ### Pending Todos
 
@@ -73,6 +75,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-24T09:24:00Z
-Stopped at: Completed 07-01-PLAN.md
-Resume file: .planning/phases/07-engine-vcs-dispatch/07-02-PLAN.md
+Last session: 2026-03-24T09:28:06Z
+Stopped at: Completed 07-02-PLAN.md (Phase 07 complete)
+Resume file: Phase 8 planning needed
