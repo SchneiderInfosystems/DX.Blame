@@ -48,6 +48,7 @@ type
     FVCSNotified: Boolean;
     FActiveThreads: TDictionary<string, TBlameThread>;
     FDebounceTimers: TDictionary<string, TTimer>;
+    FRetryTimers: TDictionary<string, TTimer>;
     FRetryFailed: TDictionary<string, Boolean>;
     FLock: TCriticalSection;
 
@@ -202,6 +203,7 @@ begin
   FCache := TBlameCache.Create;
   FActiveThreads := TDictionary<string, TBlameThread>.Create;
   FDebounceTimers := TDictionary<string, TTimer>.Create;
+  FRetryTimers := TDictionary<string, TTimer>.Create;
   FRetryFailed := TDictionary<string, Boolean>.Create;
   FLock := TCriticalSection.Create;
   FVCSAvailable := False;
@@ -213,6 +215,7 @@ begin
   CancelAllThreads;
   ClearAllTimers;
   FRetryFailed.Free;
+  FRetryTimers.Free;
   FDebounceTimers.Free;
   FActiveThreads.Free;
   FCache.Free;
@@ -468,6 +471,13 @@ begin
     LRetryTimer.Interval := cDefaultRetryDelayMs;
     LRetryTimer.OnTimer := DoRetryBlame;
     LRetryTimer.Enabled := True;
+
+    FLock.Enter;
+    try
+      FRetryTimers.AddOrSetValue(LKey, LRetryTimer);
+    finally
+      FLock.Leave;
+    end;
   end
   else
   begin
@@ -480,9 +490,25 @@ var
   LTimer: TTimer;
   LKey: string;
   LPair: TPair<string, Boolean>;
+  LTimerPair: TPair<string, TTimer>;
 begin
   LTimer := ASender as TTimer;
   LTimer.Enabled := False;
+
+  FLock.Enter;
+  try
+    for LTimerPair in FRetryTimers do
+    begin
+      if LTimerPair.Value = LTimer then
+      begin
+        FRetryTimers.Remove(LTimerPair.Key);
+        Break;
+      end;
+    end;
+  finally
+    FLock.Leave;
+  end;
+
   LTimer.Free;
 
   LKey := '';
@@ -556,6 +582,13 @@ begin
       LPair.Value.Free;
     end;
     FDebounceTimers.Clear;
+
+    for LPair in FRetryTimers do
+    begin
+      LPair.Value.Enabled := False;
+      LPair.Value.Free;
+    end;
+    FRetryTimers.Clear;
   finally
     FLock.Leave;
   end;
