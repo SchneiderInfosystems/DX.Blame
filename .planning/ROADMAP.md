@@ -82,11 +82,11 @@ Plans:
   1. User can navigate to Tools > Options > Third Party > DX.Blame and see a settings page
   2. The Options page includes all settings: anchor mode, statusbar toggle, inline toggle, VCS preference, and all existing display settings
   3. Tools > DX.Blame menu items (Settings dialog, Toggle) are removed from the IDE menu
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 14-01: Settings frame extraction and IDE Options registration
-- [ ] 14-02: Tools menu removal and integration wiring
+- [ ] 14-01-PLAN.md — Settings frame (TFrameDXBlameSettings), INTAAddInOptions adapter, IDE Options registration
+- [ ] 14-02-PLAN.md — Tools menu removal (CreateToolsMenu, TDXBlameMenuHandler, menu vars deleted)
 
 ## Progress
 
