@@ -54,6 +54,7 @@ type
     RadioButtonAllLines: TRadioButton;
     LabelAnnotationPosition: TLabel;
     ComboBoxAnnotationPosition: TComboBox;
+    CheckBoxShowInline: TCheckBox;
     GroupBoxVCS: TGroupBox;
     LabelVCSPreference: TLabel;
     ComboBoxVCSPreference: TComboBox;
@@ -137,6 +138,7 @@ begin
     RadioButtonAllLines.Checked := True;
 
   ComboBoxAnnotationPosition.ItemIndex := Ord(LSettings.AnnotationPosition);
+  CheckBoxShowInline.Checked := LSettings.ShowInline;
 
   LabelHotkeyValue.Caption := LSettings.ToggleHotkey;
 
@@ -167,6 +169,7 @@ begin
     LSettings.DisplayScope := dsCurrentLine;
 
   LSettings.AnnotationPosition := TDXBlameAnnotationPosition(ComboBoxAnnotationPosition.ItemIndex);
+  LSettings.ShowInline := CheckBoxShowInline.Checked;
 
   LSettings.VCSPreference := TDXBlameVCSPreference(ComboBoxVCSPreference.ItemIndex);
 
