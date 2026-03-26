@@ -292,6 +292,9 @@ begin
   // Wire callback so KeyBinding can sync menu checkmark without circular dependency
   DX.Blame.KeyBinding.OnBlameToggled := SyncEnableBlameCheckmark;
 
+  // Wire callback so Navigation context menu toggle syncs Tools menu checkmark
+  DX.Blame.Navigation.GOnContextMenuToggle := SyncEnableBlameCheckmark;
+
   // Attach "Previous Revision" item to the editor context menu
   AttachContextMenu;
 

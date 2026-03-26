@@ -20,12 +20,16 @@ unit DX.Blame.Navigation;
 
 interface
 
+uses
+  System.SysUtils;
+
 /// <summary>
 /// Opens the file at the specified commit in a new editor tab.
 /// Shows an informational message if the file doesn't exist at that commit.
 /// </summary>
 procedure NavigateToRevision(const AFileName: string;
-  const ACommitHash: string; const ARepoRoot: string);
+  const ACommitHash: string; const ARepoRoot: string;
+  ALineNumber: Integer = 0);
 
 /// <summary>
 /// Returns True if the commit hash is valid for revision navigation.
@@ -43,10 +47,17 @@ procedure AttachContextMenu;
 /// </summary>
 procedure DetachContextMenu;
 
+var
+  /// <summary>
+  /// Callback invoked after blame is toggled via context menu.
+  /// Assigned by Registration.pas to wire menu checkmark synchronization
+  /// without creating a circular dependency.
+  /// </summary>
+  GOnContextMenuToggle: TProc;
+
 implementation
 
 uses
-  System.SysUtils,
   System.Classes,
   System.IOUtils,
   Vcl.Menus,
@@ -60,7 +71,8 @@ uses
   DX.Blame.Engine,
   DX.Blame.Formatter,
   DX.Blame.Settings,
-  DX.Blame.Hg.Discovery;
+  DX.Blame.Hg.Discovery,
+  DX.Blame.Renderer;
 
 type
   /// <summary>
@@ -73,6 +85,7 @@ type
     procedure OnEditorPopup(Sender: TObject);
     procedure OnThgAnnotateClick(Sender: TObject);
     procedure OnThgLogClick(Sender: TObject);
+    procedure OnToggleBlameClick(Sender: TObject);
   end;
 
 var
@@ -81,6 +94,7 @@ var
   GThgSeparatorItem: TMenuItem;
   GThgAnnotateItem: TMenuItem;
   GThgLogItem: TMenuItem;
+  GEnableBlameItem: TMenuItem;
   GMenuHandler: TNavigationMenuHandler;
 
 /// <summary>
@@ -118,7 +132,8 @@ begin
 end;
 
 procedure NavigateToRevision(const AFileName: string;
-  const ACommitHash: string; const ARepoRoot: string);
+  const ACommitHash: string; const ARepoRoot: string;
+  ALineNumber: Integer = 0);
 var
   LRelPath: string;
   LContent: string;
@@ -128,6 +143,12 @@ var
   LBaseName: string;
   LExt: string;
   LActionServices: IOTAActionServices;
+  LModuleServices: IOTAModuleServices;
+  LModule: IOTAModule;
+  LSourceEditor: IOTASourceEditor;
+  LEditView: IOTAEditView;
+  LEditPos: TOTAEditPos;
+  i: Integer;
 begin
   if not IsRevisionAvailable(ACommitHash) then
     Exit;
@@ -160,6 +181,35 @@ begin
   // 4. Open in IDE
   if Supports(BorlandIDEServices, IOTAActionServices, LActionServices) then
     LActionServices.OpenFile(LTempFile);
+
+  // 5. Auto-scroll to source line if requested
+  if ALineNumber > 0 then
+  begin
+    if Supports(BorlandIDEServices, IOTAModuleServices, LModuleServices) then
+    begin
+      LModule := LModuleServices.FindModule(LTempFile);
+      if LModule <> nil then
+      begin
+        for i := 0 to LModule.GetModuleFileCount - 1 do
+        begin
+          if Supports(LModule.GetModuleFileEditor(i), IOTASourceEditor, LSourceEditor) then
+          begin
+            LSourceEditor.Show;
+            LEditView := (BorlandIDEServices as IOTAEditorServices).TopView;
+            if LEditView <> nil then
+            begin
+              LEditPos.Col := 1;
+              LEditPos.Line := ALineNumber;
+              LEditView.SetCursorPos(LEditPos);
+              LEditView.Center(ALineNumber, 1);
+              LEditView.Paint;
+            end;
+            Break;
+          end;
+        end;
+      end;
+    end;
+  end;
 end;
 
 { TNavigationMenuHandler }
@@ -213,7 +263,8 @@ begin
   if not IsRevisionAvailable(LLineInfo.CommitHash) then
     Exit;
 
-  NavigateToRevision(LFileName, LLineInfo.CommitHash, BlameEngine.RepoRoot);
+  NavigateToRevision(LFileName, LLineInfo.CommitHash, BlameEngine.RepoRoot,
+    LLineInfo.FinalLine);
 end;
 
 /// <summary>
@@ -266,6 +317,15 @@ begin
   LaunchThg('log', BlameEngine.RepoRoot, LFileName);
 end;
 
+procedure TNavigationMenuHandler.OnToggleBlameClick(Sender: TObject);
+begin
+  BlameSettings.Enabled := not BlameSettings.Enabled;
+  BlameSettings.Save;
+  if Assigned(GOnContextMenuToggle) then
+    GOnContextMenuToggle();
+  InvalidateAllEditors;
+end;
+
 var
   GHookedPopup: TPopupMenu;
   GOriginalOnPopup: TNotifyEvent;
@@ -276,12 +336,13 @@ var
 /// </summary>
 procedure RemoveOurItems;
 begin
-  // Free in reverse order; items remove themselves from parent
+  // Free in reverse order of insertion; items remove themselves from parent
   FreeAndNil(GThgLogItem);
   FreeAndNil(GThgAnnotateItem);
   FreeAndNil(GThgSeparatorItem);
   FreeAndNil(GContextMenuItem);
   FreeAndNil(GSeparatorItem);
+  FreeAndNil(GEnableBlameItem);
 end;
 
 procedure TNavigationMenuHandler.OnEditorPopup(Sender: TObject);
@@ -296,6 +357,16 @@ begin
 
   if (Sender is TPopupMenu) then
   begin
+    // Enable/Disable Blame toggle (always shown, does not require VCS)
+    GEnableBlameItem := TMenuItem.Create(nil);
+    if BlameSettings.Enabled then
+      GEnableBlameItem.Caption := 'Disable Blame'#9'Ctrl+Alt+B'
+    else
+      GEnableBlameItem.Caption := 'Enable Blame'#9'Ctrl+Alt+B';
+    GEnableBlameItem.Checked := BlameSettings.Enabled;
+    GEnableBlameItem.OnClick := Self.OnToggleBlameClick;
+    TPopupMenu(Sender).Items.Add(GEnableBlameItem);
+
     // Determine caption and availability from current line's blame data
     LAvailable := BlameEngine.VCSAvailable and
       TryGetCurrentLineInfo(LFileName, LLineInfo) and
@@ -393,8 +464,9 @@ procedure DetachContextMenu;
 begin
   RemoveOurItems;
 
-  // Restore original OnPopup handler
-  if (GHookedPopup <> nil) and Assigned(GOriginalOnPopup) then
+  // Restore original OnPopup handler (nil is a valid restore target when no
+  // original handler existed -- without this guard the hook would persist after unload)
+  if GHookedPopup <> nil then
     GHookedPopup.OnPopup := GOriginalOnPopup;
 
   GHookedPopup := nil;
