@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: UX Polish & Settings
 status: executing
-stopped_at: Completed 14-01-PLAN.md (IDE Options Migration - Frame and adapter)
-last_updated: "2026-03-26T22:46:21.000Z"
-last_activity: "2026-03-26 — Completed plan 14-01: TFrameDXBlameSettings + TDXBlameAddInOptions, package registered under Tools > Options > Third Party > DX Blame"
+stopped_at: Completed 14-02-PLAN.md (IDE Options Migration - Tools menu removal)
+last_updated: "2026-03-26T22:52:34.034Z"
+last_activity: "2026-03-26 — Completed plan 14-02: Tools menu removed from Registration.pas; SyncEnableBlameCheckmark no-op stub; v1.2 milestone complete"
 progress:
   total_phases: 3
-  completed_phases: 2
-  total_plans: 5
-  completed_plans: 5
-  percent: 88
+  completed_phases: 3
+  total_plans: 6
+  completed_plans: 6
+  percent: 100
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Core value:** Der Entwickler sieht auf einen Blick, wer eine Codezeile zuletzt geaendert hat und wann, ohne die IDE verlassen zu muessen.
-**Current focus:** v1.2 Phase 13 in progress — statusbar blame display shipped (plan 1 of 2)
+**Current focus:** v1.2 milestone complete — Phase 14 (IDE Options Migration) finished
 
 ## Current Position
 
-Phase: 14 of 14 (IDE Options Migration)
-Plan: 1 of 1 in current phase — plan 1 complete
-Status: In Progress
-Last activity: 2026-03-26 — Completed plan 14-01: TFrameDXBlameSettings + INTAAddInOptions adapter under Tools > Options > Third Party > DX Blame
+Phase: 14 of 14 (IDE Options Migration) — COMPLETE
+Plan: 2 of 2 in current phase — all plans complete
+Status: Complete
+Last activity: 2026-03-26 — Completed plan 14-02: Tools menu removed from Registration.pas, SyncEnableBlameCheckmark retained as no-op stub
 
-Progress: [█████████░] 88%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -59,6 +59,11 @@ Progress: [█████████░] 88%
 - Tasks: 2
 - Files modified: 6
 
+**v1.2 Phase 14-02:**
+- Duration: 2 min
+- Tasks: 1
+- Files modified: 1
+
 ## Accumulated Context
 
 ### Decisions
@@ -81,6 +86,8 @@ All v1.0 and v1.1 decisions validated with outcomes — see PROJECT.md Key Decis
 - [Phase 14-01]: GAddInOptions typed as INTAAddInOptions interface so ref-counting keeps adapter alive between Options dialog opens
 - [Phase 14-01]: GetArea returns empty string for standard Third Party node placement (Pitfall 3 prevention)
 - [Phase 14-01]: UnregisterAddInOptions at finalization step 6.5 before RemoveWizard (Pitfall 2 prevention)
+- [Phase 14-02]: SyncEnableBlameCheckmark kept as public no-op stub — KeyBinding.pas and Navigation.pas assign it to callbacks, removal would require separate plan
+- [Phase 14-02]: Finalization step 6 replaced with explanatory comment, numbering preserved for traceability
 
 ### Pending Todos
 
@@ -92,6 +99,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-26T22:46:21.000Z
-Stopped at: Completed 14-01-PLAN.md (IDE Options Migration - Frame and adapter)
+Last session: 2026-03-26T22:52:34.006Z
+Stopped at: Completed 14-02-PLAN.md (IDE Options Migration - Tools menu removal)
 Resume file: None

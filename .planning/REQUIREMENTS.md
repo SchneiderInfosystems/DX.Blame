@@ -24,7 +24,7 @@ Requirements for UX Polish & Settings milestone. Each maps to roadmap phases.
 
 - [x] **SETT-01**: Settings are accessible via Tools > Options > Third Party > DX.Blame (INTAAddInOptions TFrame)
 - [x] **SETT-02**: Options page includes all existing and new settings (anchor mode, statusbar toggle)
-- [ ] **SETT-03**: Tools > DX.Blame menu items are removed after Options page migration
+- [x] **SETT-03**: Tools > DX.Blame menu items are removed after Options page migration
 
 ## Future Requirements
 
@@ -65,7 +65,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | NAV-02 | Phase 13 | Complete |
 | SETT-01 | Phase 14 | Complete |
 | SETT-02 | Phase 14 | Complete |
-| SETT-03 | Phase 14 | Pending |
+| SETT-03 | Phase 14 | Complete |
 
 **Coverage:**
 - v1.2 requirements: 10 total

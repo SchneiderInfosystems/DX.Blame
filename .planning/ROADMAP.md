@@ -41,7 +41,7 @@ Full details: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md)
 
 - [x] **Phase 12: Settings Foundation & Annotation Positioning** - New settings properties and caret-anchored annotation rendering (completed 2026-03-26)
 - [x] **Phase 13: Statusbar Display & Navigation** - Statusbar blame panel, context menu toggle, and auto-scroll on revision navigation (completed 2026-03-26)
-- [ ] **Phase 14: IDE Options Migration** - Extract settings into TFrame, register as IDE Options page, remove Tools menu
+- [x] **Phase 14: IDE Options Migration** - Extract settings into TFrame, register as IDE Options page, remove Tools menu (completed 2026-03-26)
 
 ## Phase Details
 
@@ -107,4 +107,4 @@ Plans:
 | 11. Engine Project-Switch Lifecycle Fix | v1.1 | 1/1 | Complete | 2026-03-25 |
 | 12. Settings Foundation & Annotation Positioning | 2/2 | Complete    | 2026-03-26 | - |
 | 13. Statusbar Display & Navigation | 2/2 | Complete    | 2026-03-26 | - |
-| 14. IDE Options Migration | 1/2 | In Progress|  | - |
+| 14. IDE Options Migration | 2/2 | Complete   | 2026-03-26 | - |
