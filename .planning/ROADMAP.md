@@ -53,11 +53,11 @@ Full details: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md)
   1. User can switch annotation positioning from end-of-line to caret-anchored in settings
   2. In all-lines mode with caret-anchored positioning, only the caret line's annotation follows the caret column while other lines remain end-of-line
   3. User can independently enable/disable inline annotations and statusbar display (four combinations possible)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 12-01: Settings properties and annotation positioning
-- [ ] 12-02: Independent display mode toggles
+- [ ] 12-01-PLAN.md — AnnotationPosition setting, caret-anchored X in PaintLine, settings UI
+- [ ] 12-02-PLAN.md — ShowInline toggle with renderer guard and settings UI
 
 ### Phase 13: Statusbar Display & Navigation
 **Goal**: Users can see blame info in the statusbar and toggle blame from the context menu, with historical revision navigation scrolling to the source line
