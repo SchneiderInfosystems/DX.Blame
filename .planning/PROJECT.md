@@ -26,42 +26,39 @@ Der Entwickler sieht auf einen Blick, wer eine Codezeile zuletzt geändert hat u
 - ✓ Theme-aware Annotation-Farbe (automatische Ableitung aus IDE-Theme) — v1.0
 - ✓ Navigation zur annotierten Revision per Kontextmenü — v1.0
 - ✓ RTF-farbcodierter Diff-Dialog mit Scope-Toggle und Größenpersistenz — v1.0
+- ✓ VCS abstraction layer (IVCSProvider interface, Git and Hg backends) — v1.1
+- ✓ Full Mercurial blame parity (annotations, commit details, diffs, revision nav) — v1.1
+- ✓ TortoiseHg context menu integration (Annotate, Log) — v1.1
+- ✓ Auto-detection of .git / .hg in project directory — v1.1
+- ✓ VCS preference prompt when both Git and Hg are present (remember per project) — v1.1
+- ✓ Settings dialog updated for VCS preference (Auto/Git/Mercurial) — v1.1
 
 ### Active
 
-- [ ] VCS abstraction layer (interface-based, Git and Hg backends)
-- [ ] Full Mercurial blame parity (annotations, commit details, diffs)
-- [ ] Support both hg CLI and TortoiseHg (thg)
-- [ ] Auto-detection of .git / .hg in project directory
-- [ ] VCS preference prompt when both Git and Hg are present (remember per project)
-- [ ] Settings dialog updated for VCS preference
-
-## Current Milestone: v1.1 Mercurial Support
-
-**Goal:** Add full Mercurial blame support with VCS abstraction, achieving feature parity with Git.
-
-**Target features:**
-- VCS abstraction layer with interface-based backends
-- Mercurial blame, commit details, and diff via hg/thg CLI
-- Auto-detection and user-prompted VCS preference when both are present
+(None — define next milestone with `/gsd:new-milestone`)
 
 ### Out of Scope
 
-- libgit2 native Bindings — unnötige Komplexität, git CLI ist zuverlässiger und einfacher
+- libgit2/libhg native Bindings — unnötige Komplexität, CLI ist zuverlässiger und einfacher
 - Blame für nicht-gespeicherte Änderungen — nur committed/staged Code
-- Git History Browser — nur Blame, kein vollständiger Git-Client
-- Andere VCS (SVN) — nur Git und Mercurial
+- Git/Hg History Browser — nur Blame, kein vollständiger VCS-Client
+- Andere VCS (SVN) — nur Git und Mercurial (IVCSProvider ist erweiterbar)
 - Real-time Blame bei jedem Tastendruck — Performance-Killer, sinnlos für uncommitted Änderungen
+- Mercurial GUI integration beyond TortoiseHg — TortoiseHg is the dominant Windows Mercurial client
 
 ## Context
 
-Shipped v1.0 with 4,533 LOC Delphi across 17 production units.
-Tech stack: Delphi, Open Tools API, git CLI.
-Architecture: OTA plugin with async blame engine, thread-safe cache, INTACodeEditorEvents renderer.
+Shipped v1.1 with 6,558 LOC Delphi across 22 production units.
+Tech stack: Delphi, Open Tools API, git CLI, hg CLI, TortoiseHg (thg).
+Architecture: OTA plugin with async blame engine, IVCSProvider abstraction, thread-safe cache, INTACodeEditorEvents renderer.
 
+- IVCSProvider interface with TGitProvider and THgProvider backends
+- TVCSDiscovery orchestrator for auto-detection of Git/Hg with dual-VCS prompt
+- Mercurial blame via `hg annotate -T` with dedicated template-based parser
+- TortoiseHg context menu integration (Annotate, Log) via ShellExecute
+- VCS preference setting (Auto/Git/Mercurial) with per-project persistence
 - Editor-Notifier (IOTAEditorNotifier) für Tab-Wechsel und Änderungen
 - INTAEditServicesNotifier für Cursor-Tracking im Editor
-- Git blame wird per Shell-Aufruf (`git blame --porcelain`) ausgeführt
 - Click-based popup (not hover) for commit details — EditorMouseDown detection
 - Modal diff dialog with RTF coloring and DPI-aware scaling
 
@@ -85,6 +82,12 @@ Architecture: OTA plugin with async blame engine, thread-safe cache, INTACodeEdi
 | Pre-compile .rc to .res with BRCC32 | Avoids RLINK32 16-bit resource error in Delphi 13 | ✓ Good — solved cross-version resource compilation |
 | Midpoint blend for annotation color | (channel + 128) / 2 for theme-aware color | ✓ Good — works with light and dark themes |
 | OnBlameToggled callback pattern | Break circular dependency KeyBinding ↔ Registration | ✓ Good — clean decoupling via TProc |
+| IVCSProvider single interface | One interface covering all VCS operations (blame, commit, diff, nav, discovery) | ✓ Good — clean dispatch, both backends implement identically |
+| TVCSProcess base class | Extract shared CreateProcess/pipe logic from TGitProcess | ✓ Good — DRY, THgProcess is 30-line thin subclass |
+| hg annotate -T with template | Dedicated template-based parser instead of adapting Git parser | ✓ Good — independent, clean separation, pipe-delimited format |
+| Derive thg.exe from hg.exe path | Same directory lookup instead of separate registry/PATH search | ✓ Good — simple, TortoiseHg always co-locates binaries |
+| MD5-hashed project path for VCS choice | Persist dual-VCS choice without exposing file paths in INI | ✓ Good — deterministic, no path collisions |
+| FRetryTimers parallel to FDebounceTimers | Separate dictionary for retry timers following identical lifecycle pattern | ✓ Good — consistent, easy to maintain |
 
 ---
-*Last updated: 2026-03-23 after v1.1 milestone start*
+*Last updated: 2026-03-26 after v1.1 milestone completion*

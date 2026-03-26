@@ -1,51 +1,45 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: Mercurial Support
-status: completed
-stopped_at: Completed 11-01-PLAN.md
-last_updated: "2026-03-25T22:15:43.227Z"
-last_activity: 2026-03-25 — Completed 11-01 Engine project-switch lifecycle fix
+milestone: null
+milestone_name: null
+status: between_milestones
+stopped_at: v1.1 Mercurial Support shipped
+last_updated: "2026-03-26"
+last_activity: 2026-03-26 — Shipped v1.1 Mercurial Support milestone
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 11
-  completed_plans: 11
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-23)
+See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Core value:** Der Entwickler sieht auf einen Blick, wer eine Codezeile zuletzt geaendert hat und wann, ohne die IDE verlassen zu muessen.
-**Current focus:** v1.1 Mercurial Support — Phase 11 complete (Engine Project-Switch Lifecycle Fix)
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 11 of 11 (Engine Project-Switch Lifecycle Fix)
-Plan: 1 of 1 complete
-Status: Complete
-Last activity: 2026-03-25 — Completed 11-01 Engine project-switch lifecycle fix
-
-Progress: [██████████] 100%
+Status: Between milestones
+Last milestone: v1.1 Mercurial Support (shipped 2026-03-26)
+Next: `/gsd:new-milestone` to start next version
 
 ## Performance Metrics
 
-**Velocity:**
-- Total plans completed: 11 (v1.0)
-- Average duration: carried from v1.0
-- Total execution time: carried from v1.0
+**Cumulative (v1.0 + v1.1):**
+- Total phases: 11
+- Total plans: 22
+- Total LOC: 6,558 Delphi
 
-**By Phase (v1.1):**
+**v1.1 Velocity:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
-
-*Updated after each plan completion*
 | Phase 06 P01 | 3min | 2 tasks | 7 files |
 | Phase 06 P02 | 5min | 2 tasks | 10 files |
 | Phase 07 P01 | 4min | 2 tasks | 3 files |
@@ -63,30 +57,7 @@ Progress: [██████████] 100%
 
 ### Decisions
 
-All v1.0 decisions validated with outcomes — see PROJECT.md Key Decisions table.
-v1.1 research completed with HIGH confidence across all areas.
-- [Phase 06]: TVCSProcess fields made protected for subclass property access
-- [Phase 06]: Single IVCSProvider interface covering all operations per research recommendation
-- [Phase 06]: TGitProvider delegates to existing Git units rather than reimplementing logic
-- [Phase 07]: TBlameThread holds IVCSProvider interface reference for correct ref counting
-- [Phase 07]: FetchCommitDetailAsync takes IVCSProvider as first parameter (breaking change for Plan 02)
-- [Phase 07]: All consumer units (Navigation, Popup, Diff.Form) access VCS exclusively through BlameEngine.Provider
-- [Phase 08]: No registry lookup for TortoiseHg — PATH + default dirs cover standard installs
-- [Phase 08]: No fallback when hg.exe missing — Mercurial without executable is unusable
-- [Phase 08]: Uncommitted hash uses Mercurial convention ffffffffffff (12 hex f chars)
-- [Phase 08]: Nested local functions in DetectProvider keep interface minimal (single public class method)
-- [Phase 08]: Default to Git when user dismisses dual-VCS dialog — preserves existing behavior
-- [Phase 08]: OnProjectSwitch clears both Git and Hg caches explicitly (not via provider)
-- [Phase 09]: Full 40-char node hash for cHgUncommittedHash (not 12-char short form from Phase 8)
-- [Phase 09]: Added {desc|firstline} as 5th template field for Summary population
-- [Phase 09]: Positional field extraction via Pos() instead of Split to handle pipes in line content
-- [Phase 09]: Mirrored TGitProvider delegation pattern exactly for THgProvider
-- [Phase 09]: Fixed for-loop variable assignment in Hg.Blame parser for Delphi 13 compilation
-- [Phase 10]: Derive thg.exe from hg.exe path (same directory) rather than separate registry/PATH lookup
-- [Phase 10]: Recreate TortoiseHg menu items on every popup event for correct Git/Hg switching
-- [Phase 10]: Forced VCS preference validates executable and repo root before returning (same safety as auto-detect)
-- [Phase 10]: VCS re-detection only triggers on preference change via IOTAModuleServices active project path
-- [Phase 11]: FRetryTimers follows identical lifecycle pattern to FDebounceTimers for consistency
+All v1.0 and v1.1 decisions validated with outcomes — see PROJECT.md Key Decisions table.
 
 ### Pending Todos
 
@@ -94,11 +65,10 @@ None.
 
 ### Blockers/Concerns
 
-- Phase 9: Mercurial annotate parser is the most novel element — prototype template command against a real Hg repo before writing parser
-- Phase 8: Dual-VCS prompt UX (modal dialog vs notification) must be decided before coding discovery module
+None.
 
 ## Session Continuity
 
-Last session: 2026-03-25T22:13:06.241Z
-Stopped at: Completed 11-01-PLAN.md
+Last session: 2026-03-26
+Stopped at: v1.1 milestone shipped
 Resume file: None

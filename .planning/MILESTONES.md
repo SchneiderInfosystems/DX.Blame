@@ -1,5 +1,27 @@
 # Milestones
 
+## v1.1 Mercurial Support (Shipped: 2026-03-26)
+
+**Phases completed:** 6 phases, 11 plans, 22 tasks
+**Timeline:** 3 days (2026-03-23 to 2026-03-25)
+**Stats:** 27 files changed, +1847/-455 lines, 6,558 LOC Delphi total
+
+**Key accomplishments:**
+- VCS abstraction layer with IVCSProvider interface, shared types (TBlameLineInfo, TBlameData), and TVCSProcess base class
+- Engine fully provider-agnostic — all 5 consumer units dispatch through IVCSProvider with zero direct Git calls
+- Auto-detection of Git/Hg repositories with dual-VCS prompt, per-project persistence, and IDE Messages logging
+- Complete Mercurial blame at Git parity — annotations, commit details, RTF diffs, and revision navigation via hg CLI
+- VCS preference setting (Auto/Git/Mercurial) and TortoiseHg Annotate/Log context menu integration
+- Engine lifecycle fix — FRetryTimers dictionary and FVCSNotified reset on project switch (gap closure)
+
+**Tech debt (non-blocking):**
+- Stale "git show" comment in Navigation.pas remarks header (info only)
+- ofnProjectDesktopLoad is the only project-switch hook (pre-existing OTA limitation)
+
+**Audit:** 18/18 requirements, 6/6 E2E flows, all passed
+
+---
+
 ## v1.0 DX.Blame: Inline Git Blame for Delphi IDE (Shipped: 2026-03-23)
 
 **Phases completed:** 5 phases, 11 plans
