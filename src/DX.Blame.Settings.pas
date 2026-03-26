@@ -33,6 +33,9 @@ type
   /// <summary>VCS backend preference: Auto-detect or force a specific provider.</summary>
   TDXBlameVCSPreference = (vpAuto, vpGit, vpMercurial);
 
+  /// <summary>Annotation X position mode: end-of-line or caret-anchored.</summary>
+  TDXBlameAnnotationPosition = (apEndOfLine, apCaretColumn);
+
   /// <summary>
   /// Singleton settings for DX.Blame with INI file persistence.
   /// </summary>
@@ -50,6 +53,7 @@ type
     FDiffDialogWidth: Integer;
     FDiffDialogHeight: Integer;
     FVCSPreference: TDXBlameVCSPreference;
+    FAnnotationPosition: TDXBlameAnnotationPosition;
   public
     constructor Create;
 
@@ -77,6 +81,7 @@ type
     property DiffDialogWidth: Integer read FDiffDialogWidth write FDiffDialogWidth;
     property DiffDialogHeight: Integer read FDiffDialogHeight write FDiffDialogHeight;
     property VCSPreference: TDXBlameVCSPreference read FVCSPreference write FVCSPreference;
+    property AnnotationPosition: TDXBlameAnnotationPosition read FAnnotationPosition write FAnnotationPosition;
   end;
 
 /// <summary>Returns the singleton TDXBlameSettings instance (lazy-initialized).</summary>
@@ -116,6 +121,7 @@ begin
   FDiffDialogWidth := 800;
   FDiffDialogHeight := 600;
   FVCSPreference := vpAuto;
+  FAnnotationPosition := apEndOfLine;
   Load;
 end;
 
@@ -132,6 +138,7 @@ var
   LDateStr: string;
   LScopeStr: string;
   LPrefStr: string;
+  LPosStr: string;
 begin
   LPath := GetSettingsPath;
   if not FileExists(LPath) then
@@ -173,6 +180,12 @@ begin
       FVCSPreference := vpMercurial
     else
       FVCSPreference := vpAuto;
+
+    LPosStr := LIni.ReadString('Display', 'AnnotationPosition', 'EndOfLine');
+    if SameText(LPosStr, 'CaretColumn') then
+      FAnnotationPosition := apCaretColumn
+    else
+      FAnnotationPosition := apEndOfLine;
   finally
     LIni.Free;
   end;
@@ -217,6 +230,11 @@ begin
       vpAuto: LIni.WriteString('VCS', 'Preference', 'Auto');
       vpGit: LIni.WriteString('VCS', 'Preference', 'Git');
       vpMercurial: LIni.WriteString('VCS', 'Preference', 'Mercurial');
+    end;
+
+    case FAnnotationPosition of
+      apEndOfLine:   LIni.WriteString('Display', 'AnnotationPosition', 'EndOfLine');
+      apCaretColumn: LIni.WriteString('Display', 'AnnotationPosition', 'CaretColumn');
     end;
   finally
     LIni.Free;
