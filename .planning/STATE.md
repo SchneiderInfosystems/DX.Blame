@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: UX Polish & Settings
-status: executing
+status: completed
 stopped_at: Completed 14-02-PLAN.md (IDE Options Migration - Tools menu removal)
-last_updated: "2026-03-26T22:52:34.034Z"
-last_activity: "2026-03-26 — Completed plan 14-02: Tools menu removed from Registration.pas; SyncEnableBlameCheckmark no-op stub; v1.2 milestone complete"
+last_updated: "2026-03-26T22:57:14.143Z"
+last_activity: "2026-03-26 — Completed plan 14-02: Tools menu removed from Registration.pas, SyncEnableBlameCheckmark retained as no-op stub"
 progress:
   total_phases: 3
   completed_phases: 3
