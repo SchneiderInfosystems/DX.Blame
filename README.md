@@ -7,6 +7,14 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/omonien/DX.Blame/releases/latest"><img src="https://img.shields.io/github/v/release/omonien/DX.Blame?style=flat-square&color=blue" alt="Latest Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/omonien/DX.Blame?style=flat-square" alt="License"></a>
+  <img src="https://img.shields.io/badge/Delphi-11%20%7C%2012%20%7C%2013-red?style=flat-square" alt="Delphi 11 | 12 | 13">
+  <img src="https://img.shields.io/badge/VCS-Git%20%7C%20Mercurial-orange?style=flat-square" alt="Git | Mercurial">
+  <img src="https://img.shields.io/badge/platform-Windows-lightgrey?style=flat-square" alt="Windows">
+</p>
+
+<p align="center">
   <a href="#features">Features</a> &middot;
   <a href="#requirements">Requirements</a> &middot;
   <a href="#installation">Installation</a> &middot;
