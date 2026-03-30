@@ -42,11 +42,18 @@ type
     FHasBlameData: Boolean;
     FFileName: string;
     FFOldOnMouseDown: TMouseEvent;
+    FFOldOnMouseMove: TMouseMoveEvent;
     FLineInfo: TBlameLineInfo;
     FPopup: TObject; // TDXBlamePopup — forward-declared to avoid circular uses
 
+    /// <summary>Returns True if X is within our panel's horizontal bounds.</summary>
+    function IsClickOnOurPanel(X: Integer): Boolean;
+    /// <summary>Shows the blame popup near the given X coordinate.</summary>
+    procedure ShowPopupAt(X: Integer);
     procedure HandleStatusBarMouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
+    procedure HandleStatusBarMouseMove(Sender: TObject; Shift: TShiftState;
+      X, Y: Integer);
   protected
     /// <summary>
     /// Handles FreeNotification from the statusbar host. When the statusbar
@@ -81,6 +88,7 @@ implementation
 
 uses
   Vcl.Forms,
+  Winapi.Windows,
   DX.Blame.Settings,
   DX.Blame.Formatter,
   DX.Blame.Engine,
@@ -137,9 +145,11 @@ begin
   FPanel.Text := '';
   FPanelIndex := FPanel.Index;
 
-  // Chain the existing OnMouseDown handler
+  // Chain the existing mouse handlers
   FFOldOnMouseDown := FStatusBar.OnMouseDown;
   FStatusBar.OnMouseDown := HandleStatusBarMouseDown;
+  FFOldOnMouseMove := FStatusBar.OnMouseMove;
+  FStatusBar.OnMouseMove := HandleStatusBarMouseMove;
 end;
 
 procedure TDXBlameStatusbar.DetachFromStatusBar;
@@ -147,8 +157,9 @@ begin
   if FStatusBar = nil then
     Exit;
 
-  // Restore original OnMouseDown before removing the panel
+  // Restore original mouse handlers before removing the panel
   FStatusBar.OnMouseDown := FFOldOnMouseDown;
+  FStatusBar.OnMouseMove := FFOldOnMouseMove;
 
   // Remove the panel if still valid
   if (FPanel <> nil) and (FPanelIndex >= 0) and
@@ -214,58 +225,94 @@ begin
   FFileName := AFileName;
 end;
 
-procedure TDXBlameStatusbar.HandleStatusBarMouseDown(Sender: TObject;
-  Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+function TDXBlameStatusbar.IsClickOnOurPanel(X: Integer): Boolean;
 var
   LPanelLeft: Integer;
   i: Integer;
+begin
+  Result := False;
+  if (FPanel = nil) or (FPanelIndex < 0) then
+    Exit;
+  LPanelLeft := 0;
+  for i := 0 to FPanelIndex - 1 do
+    LPanelLeft := LPanelLeft + FStatusBar.Panels.Items[i].Width;
+  Result := (X >= LPanelLeft) and (X < LPanelLeft + FPanel.Width);
+end;
+
+procedure TDXBlameStatusbar.ShowPopupAt(X: Integer);
+var
   LPopup: TDXBlamePopup;
   LScreenPos: TPoint;
   LRepoRoot: string;
   LRelPath: string;
-  LLineInfo: TBlameLineInfo;
 begin
-  // Compute the left edge of our panel by summing widths of preceding panels
-  LPanelLeft := 0;
-  for i := 0 to FPanelIndex - 1 do
-    LPanelLeft := LPanelLeft + FStatusBar.Panels.Items[i].Width;
+  LScreenPos := FStatusBar.ClientToScreen(Point(X, 0));
 
-  // Check if click falls within our panel's bounds
-  if (X >= LPanelLeft) and (X < LPanelLeft + FPanel.Width) then
+  LRepoRoot := BlameEngine.RepoRoot;
+  if LRepoRoot <> '' then
+    LRelPath := ExtractRelativePath(
+      IncludeTrailingPathDelimiter(LRepoRoot), FFileName)
+  else
+    LRelPath := ExtractFileName(FFileName);
+  LRelPath := StringReplace(LRelPath, '\', '/', [rfReplaceAll]);
+
+  if FPopup = nil then
+    FPopup := TDXBlamePopup.Create(nil);
+  LPopup := TDXBlamePopup(FPopup);
+
+  if LPopup.Visible then
+    LPopup.UpdateContent(FLineInfo, LRepoRoot, LRelPath)
+  else if BlameSettings.PopupTrigger = ptHover then
+    LPopup.ShowForHover(FLineInfo, LScreenPos, LRepoRoot, LRelPath)
+  else
+    LPopup.ShowForCommit(FLineInfo, LScreenPos, LRepoRoot, LRelPath);
+end;
+
+procedure TDXBlameStatusbar.HandleStatusBarMouseDown(Sender: TObject;
+  Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+begin
+  if (Button = mbLeft) and FHasBlameData and
+     (BlameSettings.PopupTrigger = ptClick) and IsClickOnOurPanel(X) then
   begin
-    if FHasBlameData and (Button = mbLeft) then
+    ShowPopupAt(X);
+    Exit;
+  end;
+
+  if Assigned(FFOldOnMouseDown) then
+    FFOldOnMouseDown(Sender, Button, Shift, X, Y);
+end;
+
+procedure TDXBlameStatusbar.HandleStatusBarMouseMove(Sender: TObject;
+  Shift: TShiftState; X, Y: Integer);
+begin
+  if FHasBlameData and (BlameSettings.PopupTrigger = ptHover) and
+     IsClickOnOurPanel(X) then
+  begin
+    // Already showing popup — skip
+    if (FPopup <> nil) and TDXBlamePopup(FPopup).Visible then
     begin
-      LLineInfo := FLineInfo;
-
-      // Compute screen position for popup placement (base of statusbar)
-      LScreenPos := FStatusBar.ClientToScreen(Point(X, 0));
-
-      // Compute relative file path for VCS commands
-      LRepoRoot := BlameEngine.RepoRoot;
-      if LRepoRoot <> '' then
-        LRelPath := ExtractRelativePath(
-          IncludeTrailingPathDelimiter(LRepoRoot), FFileName)
-      else
-        LRelPath := ExtractFileName(FFileName);
-      LRelPath := StringReplace(LRelPath, '\', '/', [rfReplaceAll]);
-
-      // Create or reuse popup
-      if FPopup = nil then
-        FPopup := TDXBlamePopup.Create(nil);
-      LPopup := TDXBlamePopup(FPopup);
-
-      if LPopup.Visible then
-        LPopup.UpdateContent(LLineInfo, LRepoRoot, LRelPath)
-      else
-        LPopup.ShowForCommit(LLineInfo, LScreenPos, LRepoRoot, LRelPath);
-
-      Exit; // consume the click — do not chain
+      if Assigned(FFOldOnMouseMove) then
+        FFOldOnMouseMove(Sender, Shift, X, Y);
+      Exit;
+    end;
+    ShowPopupAt(X);
+  end
+  else
+  begin
+    // Mouse left our panel — hide hover popup
+    if (FPopup <> nil) and TDXBlamePopup(FPopup).Visible and
+       (BlameSettings.PopupTrigger = ptHover) then
+    begin
+      // Only hide if cursor is not over the popup itself
+      var LCursorPos: TPoint;
+      GetCursorPos(LCursorPos);
+      if not PtInRect(TDXBlamePopup(FPopup).BoundsRect, LCursorPos) then
+        TDXBlamePopup(FPopup).Hide;
     end;
   end;
 
-  // Click was not on our panel — chain to previous handler
-  if Assigned(FFOldOnMouseDown) then
-    FFOldOnMouseDown(Sender, Button, Shift, X, Y);
+  if Assigned(FFOldOnMouseMove) then
+    FFOldOnMouseMove(Sender, Shift, X, Y);
 end;
 
 end.

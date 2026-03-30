@@ -357,12 +357,9 @@ begin
 
   if (Sender is TPopupMenu) then
   begin
-    // Enable/Disable Blame toggle (always shown, does not require VCS)
+    // Blame toggle with checkbox (always shown, does not require VCS)
     GEnableBlameItem := TMenuItem.Create(nil);
-    if BlameSettings.Enabled then
-      GEnableBlameItem.Caption := 'Disable Blame'#9'Ctrl+Alt+B'
-    else
-      GEnableBlameItem.Caption := 'Enable Blame'#9'Ctrl+Alt+B';
+    GEnableBlameItem.Caption := 'Blame'#9'Ctrl+Alt+B';
     GEnableBlameItem.Checked := BlameSettings.Enabled;
     GEnableBlameItem.OnClick := Self.OnToggleBlameClick;
     TPopupMenu(Sender).Items.Add(GEnableBlameItem);
@@ -377,10 +374,6 @@ begin
     else
       LCaption := 'Show revision...';
 
-    GSeparatorItem := TMenuItem.Create(nil);
-    GSeparatorItem.Caption := '-';
-    TPopupMenu(Sender).Items.Add(GSeparatorItem);
-
     GContextMenuItem := TMenuItem.Create(nil);
     GContextMenuItem.Caption := LCaption;
     GContextMenuItem.Enabled := LAvailable;
@@ -392,10 +385,6 @@ begin
        SameText(BlameEngine.Provider.GetDisplayName, 'Mercurial') and
        (FindThgExecutable <> '') then
     begin
-      GThgSeparatorItem := TMenuItem.Create(nil);
-      GThgSeparatorItem.Caption := '-';
-      TPopupMenu(Sender).Items.Add(GThgSeparatorItem);
-
       GThgAnnotateItem := TMenuItem.Create(nil);
       GThgAnnotateItem.Caption := 'Open in TortoiseHg Annotate';
       GThgAnnotateItem.OnClick := Self.OnThgAnnotateClick;
@@ -406,6 +395,11 @@ begin
       GThgLogItem.OnClick := Self.OnThgLogClick;
       TPopupMenu(Sender).Items.Add(GThgLogItem);
     end;
+
+    // Separator after the entire Blame group
+    GSeparatorItem := TMenuItem.Create(nil);
+    GSeparatorItem.Caption := '-';
+    TPopupMenu(Sender).Items.Add(GSeparatorItem);
   end;
 
   // Chain to original OnPopup handler

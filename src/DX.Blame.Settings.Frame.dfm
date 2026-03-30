@@ -3,6 +3,7 @@
   Top = 0
   Width = 400
   Height = 625
+  AutoScroll = True
   ParentFont = True
   TabOrder = 0
   object GroupBoxFormat: TGroupBox

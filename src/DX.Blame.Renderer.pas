@@ -504,7 +504,13 @@ begin
   if GCellHeight <= 0 then
     Exit;
 
-  // Check if mouse is over any annotation area
+  // Only trigger hover on the caret line where an annotation is actually shown
+  if not BlameSettings.ShowInline then
+    Exit;
+  if FCurrentLine <= 0 then
+    Exit;
+
+  // Check if mouse is over the caret line's annotation area
   LLogicalLine := -1;
   LRowTop := 0;
   LAnnotationX := 0;
@@ -516,6 +522,9 @@ begin
       LAnnotationX := LPair.Value;
       if (GLineByRow <> nil) then
         GLineByRow.TryGetValue(LRowTop, LLogicalLine);
+      // Only accept if this is the caret line
+      if LLogicalLine <> FCurrentLine then
+        LLogicalLine := -1;
       Break;
     end;
   end;
