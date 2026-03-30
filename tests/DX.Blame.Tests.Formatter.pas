@@ -20,6 +20,7 @@ interface
 
 uses
   DUnitX.TestFramework,
+  DX.Blame.VCS.Types,
   DX.Blame.Git.Types,
   DX.Blame.Settings,
   DX.Blame.Formatter;
@@ -63,12 +64,6 @@ type
     procedure TestClickableLengthWithoutAuthor;
     [Test]
     procedure TestClickableLengthUncommitted;
-    [Test]
-    procedure TestDeriveColorFallbackIsGray;
-    [Test]
-    procedure TestDeriveColorRangeForWhiteBg;
-    [Test]
-    procedure TestDeriveColorRangeForDarkBg;
   end;
 
 implementation
@@ -241,42 +236,6 @@ begin
   Assert.AreEqual(0,
     GetAnnotationClickableLength(LInfo, FSettings),
     'Uncommitted line should have zero clickable length');
-end;
-
-procedure TFormatterTests.TestDeriveColorFallbackIsGray;
-var
-  LColor: TColor;
-begin
-  // Without IDE services, should return clGray
-  LColor := DeriveAnnotationColor;
-  Assert.AreEqual(Integer(clGray), Integer(LColor));
-end;
-
-procedure TFormatterTests.TestDeriveColorRangeForWhiteBg;
-begin
-  // This test validates the fallback path since BorlandIDEServices is not available
-  // in test runner context. The actual IDE-aware color derivation is tested
-  // in Plan 02 when the renderer integrates with INTACodeEditorServices.
-  var LColor := DeriveAnnotationColor;
-  // Fallback is clGray = $808080 which has R=128, G=128, B=128
-  var LR := GetRValue(ColorToRGB(LColor));
-  var LG := GetGValue(ColorToRGB(LColor));
-  var LB := GetBValue(ColorToRGB(LColor));
-  Assert.IsTrue((LR >= 90) and (LR <= 170), 'R channel should be in muted range');
-  Assert.IsTrue((LG >= 90) and (LG <= 170), 'G channel should be in muted range');
-  Assert.IsTrue((LB >= 90) and (LB <= 170), 'B channel should be in muted range');
-end;
-
-procedure TFormatterTests.TestDeriveColorRangeForDarkBg;
-begin
-  // Same as white bg test -- fallback path returns clGray which is in range
-  var LColor := DeriveAnnotationColor;
-  var LR := GetRValue(ColorToRGB(LColor));
-  var LG := GetGValue(ColorToRGB(LColor));
-  var LB := GetBValue(ColorToRGB(LColor));
-  Assert.IsTrue((LR >= 90) and (LR <= 170), 'R channel should be in muted range');
-  Assert.IsTrue((LG >= 90) and (LG <= 170), 'G channel should be in muted range');
-  Assert.IsTrue((LB >= 90) and (LB <= 170), 'B channel should be in muted range');
 end;
 
 initialization

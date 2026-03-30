@@ -87,10 +87,6 @@ begin
   LIni := TIniFile.Create(FTempIniPath);
   try
     LIni.WriteBool('General', 'Enabled', FSettings.Enabled);
-    case FSettings.DisplayScope of
-      dsCurrentLine: LIni.WriteString('General', 'DisplayScope', 'CurrentLine');
-      dsAllLines: LIni.WriteString('General', 'DisplayScope', 'AllLines');
-    end;
     LIni.WriteBool('Format', 'ShowAuthor', FSettings.ShowAuthor);
     case FSettings.DateFormat of
       dfRelative: LIni.WriteString('Format', 'DateFormat', 'Relative');
@@ -114,7 +110,6 @@ begin
   Assert.IsFalse(FSettings.ShowSummary, 'ShowSummary should default to False');
   Assert.AreEqual(80, FSettings.MaxLength, 'MaxLength should default to 80');
   Assert.IsFalse(FSettings.UseCustomColor, 'UseCustomColor should default to False');
-  Assert.AreEqual(Ord(dsCurrentLine), Ord(FSettings.DisplayScope), 'DisplayScope should default to dsCurrentLine');
 end;
 
 procedure TSettingsTests.TestSaveLoadRoundTrip;
@@ -129,7 +124,6 @@ begin
   FSettings.MaxLength := 120;
   FSettings.UseCustomColor := True;
   FSettings.CustomColor := clRed;
-  FSettings.DisplayScope := dsAllLines;
   FSettings.ToggleHotkey := 'Ctrl+Shift+G';
 
   // Save to temp INI
@@ -146,11 +140,6 @@ begin
     var LIni := TIniFile.Create(FTempIniPath);
     try
       LLoaded.Enabled := LIni.ReadBool('General', 'Enabled', True);
-      var LScopeStr := LIni.ReadString('General', 'DisplayScope', 'CurrentLine');
-      if SameText(LScopeStr, 'AllLines') then
-        LLoaded.DisplayScope := dsAllLines
-      else
-        LLoaded.DisplayScope := dsCurrentLine;
       LLoaded.ShowAuthor := LIni.ReadBool('Format', 'ShowAuthor', True);
       var LDateStr := LIni.ReadString('Format', 'DateFormat', 'Relative');
       if SameText(LDateStr, 'Absolute') then
@@ -173,7 +162,6 @@ begin
     Assert.AreEqual(120, LLoaded.MaxLength, 'MaxLength round-trip failed');
     Assert.IsTrue(LLoaded.UseCustomColor, 'UseCustomColor round-trip failed');
     Assert.AreEqual(Integer(clRed), Integer(LLoaded.CustomColor), 'CustomColor round-trip failed');
-    Assert.AreEqual(Ord(dsAllLines), Ord(LLoaded.DisplayScope), 'DisplayScope round-trip failed');
     Assert.AreEqual('Ctrl+Shift+G', LLoaded.ToggleHotkey, 'ToggleHotkey round-trip failed');
   finally
     LLoaded.Free;

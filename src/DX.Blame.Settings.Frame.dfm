@@ -2,7 +2,7 @@
   Left = 0
   Top = 0
   Width = 400
-  Height = 590
+  Height = 625
   ParentFont = True
   TabOrder = 0
   object GroupBoxFormat: TGroupBox
@@ -129,46 +129,47 @@
     Left = 12
     Top = 264
     Width = 376
-    Height = 165
+    Height = 160
     Anchors = [akLeft, akTop, akRight]
     Caption = ' Display '
     TabOrder = 2
-    object RadioButtonCurrentLine: TRadioButton
-      Left = 16
-      Top = 24
-      Width = 140
-      Height = 17
-      Caption = 'Current line only'
-      Checked = True
-      TabOrder = 0
-      TabStop = True
-    end
-    object RadioButtonAllLines: TRadioButton
-      Left = 200
-      Top = 24
-      Width = 140
-      Height = 17
-      Caption = 'All lines'
-      TabOrder = 1
-    end
     object LabelAnnotationPosition: TLabel
       Left = 16
-      Top = 56
+      Top = 24
       Width = 110
       Height = 15
       Caption = 'Annotation Position:'
     end
     object ComboBoxAnnotationPosition: TComboBox
       Left = 140
+      Top = 21
+      Width = 216
+      Height = 23
+      Style = csDropDownList
+      ItemIndex = 0
+      TabOrder = 0
+      Items.Strings = (
+        'Caret-anchored (default)'
+        'Right-aligned in editor')
+    end
+    object LabelPopupTrigger: TLabel
+      Left = 16
+      Top = 56
+      Width = 78
+      Height = 15
+      Caption = 'Popup Trigger:'
+    end
+    object ComboBoxPopupTrigger: TComboBox
+      Left = 140
       Top = 53
       Width = 216
       Height = 23
       Style = csDropDownList
       ItemIndex = 0
-      TabOrder = 2
+      TabOrder = 1
       Items.Strings = (
-        'End of line (default)'
-        'Caret-anchored')
+        'Hover (default)'
+        'Click on hash link')
     end
     object CheckBoxShowInline: TCheckBox
       Left = 16
@@ -178,7 +179,7 @@
       Caption = 'Show inline annotations'
       Checked = True
       State = cbChecked
-      TabOrder = 3
+      TabOrder = 2
     end
     object CheckBoxShowStatusbar: TCheckBox
       Left = 16
@@ -186,12 +187,14 @@
       Width = 340
       Height = 17
       Caption = 'Show in Statusbar'
-      TabOrder = 4
+      Checked = True
+      State = cbChecked
+      TabOrder = 3
     end
   end
   object GroupBoxVCS: TGroupBox
     Left = 12
-    Top = 440
+    Top = 435
     Width = 376
     Height = 55
     Anchors = [akLeft, akTop, akRight]
@@ -220,7 +223,7 @@
   end
   object GroupBoxHotkey: TGroupBox
     Left = 12
-    Top = 505
+    Top = 500
     Width = 376
     Height = 70
     Anchors = [akLeft, akTop, akRight]
@@ -252,6 +255,15 @@
       Font.Style = [fsItalic]
       ParentFont = False
     end
+  end
+  object ButtonResetDefaults: TButton
+    Left = 12
+    Top = 585
+    Width = 120
+    Height = 28
+    Caption = 'Reset to Defaults'
+    TabOrder = 5
+    OnClick = ButtonResetDefaultsClick
   end
   object ColorDialog: TColorDialog
     Left = 340

@@ -5,7 +5,7 @@
         <Config Condition="'$(Config)'==''">Debug</Config>
         <FrameworkType>None</FrameworkType>
         <MainSource>DX.Blame.Tests.dpr</MainSource>
-        <Platform Condition="'$(Platform)'==''">Win64</Platform>
+        <Platform Condition="'$(Platform)'==''">Win32</Platform>
         <ProjectGuid>{F1E2D3C4-B5A6-7890-FEDC-BA9876543210}</ProjectGuid>
         <ProjectName Condition="'$(ProjectName)'==''">DX.Blame.Tests</ProjectName>
         <ProjectVersion>20.3</ProjectVersion>
@@ -39,7 +39,7 @@
         <SanitizedProjectName>DX_Blame_Tests</SanitizedProjectName>
         <DCC_DcuOutput>..\build\$(Platform)\$(Config)\dcu</DCC_DcuOutput>
         <DCC_ExeOutput>..\build\$(Platform)\$(Config)</DCC_ExeOutput>
-        <DCC_UnitSearchPath>..\src;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>..\src;..\libs\DUnitX\Source;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
         <AppDPIAwarenessMode>none</AppDPIAwarenessMode>
@@ -54,6 +54,9 @@
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
+        <DCCReference Include="rtl.dcp"/>
+        <DCCReference Include="vcl.dcp"/>
+        <DCCReference Include="designide.dcp"/>
         <DCCReference Include="DX.Blame.Tests.Version.pas"/>
         <DCCReference Include="DX.Blame.Tests.Git.Blame.pas"/>
         <DCCReference Include="DX.Blame.Tests.Cache.pas"/>

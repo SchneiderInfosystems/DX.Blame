@@ -27,14 +27,14 @@ type
   /// <summary>Date format for blame annotations.</summary>
   TDXBlameDateFormat = (dfRelative, dfAbsolute);
 
-  /// <summary>Display scope for blame annotations.</summary>
-  TDXBlameDisplayScope = (dsCurrentLine, dsAllLines);
-
   /// <summary>VCS backend preference: Auto-detect or force a specific provider.</summary>
   TDXBlameVCSPreference = (vpAuto, vpGit, vpMercurial);
 
-  /// <summary>Annotation X position mode: end-of-line or caret-anchored.</summary>
-  TDXBlameAnnotationPosition = (apEndOfLine, apCaretColumn);
+  /// <summary>Annotation X position mode: caret-anchored or right-aligned in editor.</summary>
+  TDXBlameAnnotationPosition = (apCaretColumn, apRightAligned);
+
+  /// <summary>Popup trigger mode: hover over annotation or click on hotlink.</summary>
+  TDXBlamePopupTrigger = (ptHover, ptClick);
 
   /// <summary>
   /// Singleton settings for DX.Blame with INI file persistence.
@@ -48,12 +48,12 @@ type
     FMaxLength: Integer;
     FUseCustomColor: Boolean;
     FCustomColor: TColor;
-    FDisplayScope: TDXBlameDisplayScope;
     FToggleHotkey: string;
     FDiffDialogWidth: Integer;
     FDiffDialogHeight: Integer;
     FVCSPreference: TDXBlameVCSPreference;
     FAnnotationPosition: TDXBlameAnnotationPosition;
+    FPopupTrigger: TDXBlamePopupTrigger;
     FShowInline: Boolean;
     FShowStatusbar: Boolean;
   public
@@ -63,6 +63,8 @@ type
     procedure Load;
     /// <summary>Saves current settings to INI file.</summary>
     procedure Save;
+    /// <summary>Resets all settings to factory defaults (does not save to INI).</summary>
+    procedure ResetToDefaults;
     /// <summary>Returns the full path to the settings INI file.</summary>
     class function GetSettingsPath: string;
 
@@ -78,12 +80,13 @@ type
     property MaxLength: Integer read FMaxLength write FMaxLength;
     property UseCustomColor: Boolean read FUseCustomColor write FUseCustomColor;
     property CustomColor: TColor read FCustomColor write FCustomColor;
-    property DisplayScope: TDXBlameDisplayScope read FDisplayScope write FDisplayScope;
     property ToggleHotkey: string read FToggleHotkey write FToggleHotkey;
     property DiffDialogWidth: Integer read FDiffDialogWidth write FDiffDialogWidth;
     property DiffDialogHeight: Integer read FDiffDialogHeight write FDiffDialogHeight;
     property VCSPreference: TDXBlameVCSPreference read FVCSPreference write FVCSPreference;
     property AnnotationPosition: TDXBlameAnnotationPosition read FAnnotationPosition write FAnnotationPosition;
+    /// <summary>Popup trigger mode: hover shows popup on mouse-over, click shows popup on hotlink click.</summary>
+    property PopupTrigger: TDXBlamePopupTrigger read FPopupTrigger write FPopupTrigger;
     /// <summary>When False, PaintLine exits early — inline annotations are suppressed even if blame is globally enabled.</summary>
     property ShowInline: Boolean read FShowInline write FShowInline;
     /// <summary>When True, blame info for the current caret line is displayed in the IDE statusbar panel.</summary>
@@ -115,6 +118,12 @@ end;
 constructor TDXBlameSettings.Create;
 begin
   inherited Create;
+  ResetToDefaults;
+  Load;
+end;
+
+procedure TDXBlameSettings.ResetToDefaults;
+begin
   FEnabled := True;
   FShowAuthor := True;
   FDateFormat := dfRelative;
@@ -122,15 +131,14 @@ begin
   FMaxLength := 80;
   FUseCustomColor := False;
   FCustomColor := clGray;
-  FDisplayScope := dsCurrentLine;
   FToggleHotkey := 'Ctrl+Alt+B';
   FDiffDialogWidth := 800;
   FDiffDialogHeight := 600;
   FVCSPreference := vpAuto;
-  FAnnotationPosition := apEndOfLine;
+  FAnnotationPosition := apCaretColumn;
+  FPopupTrigger := ptHover;
   FShowInline := True;
-  FShowStatusbar := False;
-  Load;
+  FShowStatusbar := True;
 end;
 
 class function TDXBlameSettings.GetSettingsPath: string;
@@ -144,9 +152,9 @@ var
   LIni: TIniFile;
   LPath: string;
   LDateStr: string;
-  LScopeStr: string;
   LPrefStr: string;
   LPosStr: string;
+  LTriggerStr: string;
 begin
   LPath := GetSettingsPath;
   if not FileExists(LPath) then
@@ -155,12 +163,6 @@ begin
   LIni := TIniFile.Create(LPath);
   try
     FEnabled := LIni.ReadBool('General', 'Enabled', True);
-
-    LScopeStr := LIni.ReadString('General', 'DisplayScope', 'CurrentLine');
-    if SameText(LScopeStr, 'AllLines') then
-      FDisplayScope := dsAllLines
-    else
-      FDisplayScope := dsCurrentLine;
 
     FShowAuthor := LIni.ReadBool('Format', 'ShowAuthor', True);
 
@@ -189,14 +191,20 @@ begin
     else
       FVCSPreference := vpAuto;
 
-    LPosStr := LIni.ReadString('Display', 'AnnotationPosition', 'EndOfLine');
-    if SameText(LPosStr, 'CaretColumn') then
-      FAnnotationPosition := apCaretColumn
+    LPosStr := LIni.ReadString('Display', 'AnnotationPosition', 'CaretColumn');
+    if SameText(LPosStr, 'RightAligned') then
+      FAnnotationPosition := apRightAligned
     else
-      FAnnotationPosition := apEndOfLine;
+      FAnnotationPosition := apCaretColumn;
+
+    LTriggerStr := LIni.ReadString('Display', 'PopupTrigger', 'Hover');
+    if SameText(LTriggerStr, 'Click') then
+      FPopupTrigger := ptClick
+    else
+      FPopupTrigger := ptHover;
 
     FShowInline := LIni.ReadBool('Display', 'ShowInline', True);
-    FShowStatusbar := LIni.ReadBool('Display', 'ShowStatusbar', False);
+    FShowStatusbar := LIni.ReadBool('Display', 'ShowStatusbar', True);
   finally
     LIni.Free;
   end;
@@ -213,11 +221,6 @@ begin
   LIni := TIniFile.Create(LPath);
   try
     LIni.WriteBool('General', 'Enabled', FEnabled);
-
-    case FDisplayScope of
-      dsCurrentLine: LIni.WriteString('General', 'DisplayScope', 'CurrentLine');
-      dsAllLines: LIni.WriteString('General', 'DisplayScope', 'AllLines');
-    end;
 
     LIni.WriteBool('Format', 'ShowAuthor', FShowAuthor);
 
@@ -244,8 +247,13 @@ begin
     end;
 
     case FAnnotationPosition of
-      apEndOfLine:   LIni.WriteString('Display', 'AnnotationPosition', 'EndOfLine');
       apCaretColumn: LIni.WriteString('Display', 'AnnotationPosition', 'CaretColumn');
+      apRightAligned: LIni.WriteString('Display', 'AnnotationPosition', 'RightAligned');
+    end;
+
+    case FPopupTrigger of
+      ptHover: LIni.WriteString('Display', 'PopupTrigger', 'Hover');
+      ptClick: LIni.WriteString('Display', 'PopupTrigger', 'Click');
     end;
 
     LIni.WriteBool('Display', 'ShowInline', FShowInline);

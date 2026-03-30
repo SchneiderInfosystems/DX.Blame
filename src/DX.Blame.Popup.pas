@@ -58,12 +58,14 @@ type
     FRepoRoot: string;
     FRelativeFilePath: string;
     FLineInfo: TBlameLineInfo;
+    FNoActivate: Boolean;
 
     procedure HandleCommitDetailComplete(const ADetail: TCommitDetail);
     procedure ApplyThemeColors;
     function IsDarkTheme: Boolean;
     procedure CMDeactivate(var AMessage: TMessage); message CM_DEACTIVATE;
     procedure CMDialogKey(var AMessage: TCMDialogKey); message CM_DIALOGKEY;
+    procedure CMShowingChanged(var AMessage: TMessage); message CM_SHOWINGCHANGED;
   protected
     procedure CreateParams(var AParams: TCreateParams); override;
   public
@@ -80,6 +82,12 @@ type
     /// </summary>
     procedure UpdateContent(const ALineInfo: TBlameLineInfo;
       const ARepoRoot, ARelativeFilePath: string);
+
+    /// <summary>
+    /// Shows the popup without stealing focus from the editor (for hover mode).
+    /// </summary>
+    procedure ShowForHover(const ALineInfo: TBlameLineInfo;
+      const AScreenPos: TPoint; const ARepoRoot, ARelativeFilePath: string);
 
   end;
 
@@ -119,6 +127,17 @@ procedure TDXBlamePopup.CMDeactivate(var AMessage: TMessage);
 begin
   inherited;
   Hide;
+end;
+
+procedure TDXBlamePopup.CMShowingChanged(var AMessage: TMessage);
+begin
+  if Showing and FNoActivate then
+  begin
+    ShowWindow(Handle, SW_SHOWNOACTIVATE);
+    FNoActivate := False;
+  end
+  else
+    inherited;
 end;
 
 procedure TDXBlamePopup.CMDialogKey(var AMessage: TCMDialogKey);
@@ -318,6 +337,13 @@ begin
         ARelativeFilePath, HandleCommitDetailComplete);
     end;
   end;
+end;
+
+procedure TDXBlamePopup.ShowForHover(const ALineInfo: TBlameLineInfo;
+  const AScreenPos: TPoint; const ARepoRoot, ARelativeFilePath: string);
+begin
+  FNoActivate := True;
+  ShowForCommit(ALineInfo, AScreenPos, ARepoRoot, ARelativeFilePath);
 end;
 
 procedure TDXBlamePopup.ApplyThemeColors;

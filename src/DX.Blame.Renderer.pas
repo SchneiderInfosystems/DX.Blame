@@ -114,6 +114,7 @@ implementation
 uses
   System.Generics.Collections,
   System.Math,
+  Vcl.ExtCtrls,
   DX.Blame.Settings,
   DX.Blame.Formatter,
   DX.Blame.Engine,
@@ -135,6 +136,12 @@ begin
 end;
 {$ENDIF}
 
+type
+  /// <summary>Helper class for hover timer callback.</summary>
+  THoverTimerHelper = class
+    procedure OnHoverCheck(Sender: TObject);
+  end;
+
 var
   GRendererIndex: Integer = -1;
   GPopup: TDXBlamePopup = nil;
@@ -150,6 +157,29 @@ var
   GCellHeight: Integer = 0;
   // Editor TWinControl from the last paint cycle
   GLastPaintEditor: TWinControl = nil;
+
+  // Hover popup state
+  GHoverTimerHelper: THoverTimerHelper = nil;
+  GHoverCheckTimer: TTimer = nil;
+  GHoverPopupLine: Integer = -1;
+  GHoverAnnotationScreenRect: TRect;
+
+function DeriveAnnotationColor: TColor;
+var
+  LServices: INTACodeEditorServices;
+  LBgColor: TColor;
+  LR, LG, LB: Byte;
+begin
+  Result := clGray;
+  if Supports(BorlandIDEServices, INTACodeEditorServices, LServices) then
+  begin
+    LBgColor := ColorToRGB(LServices.Options.BackgroundColor[atWhiteSpace]);
+    LR := (GetRValue(LBgColor) + 128) div 2;
+    LG := (GetGValue(LBgColor) + 128) div 2;
+    LB := (GetBValue(LBgColor) + 128) div 2;
+    Result := TColor(RGB(LR, LG, LB));
+  end;
+end;
 
 { TDXBlameRenderer }
 
@@ -222,6 +252,8 @@ var
   LText: string;
   LAnnotationX: Integer;
   LCaretX: Integer;
+  LTextWidth: Integer;
+  LRightAlignedX: Integer;
   LSavedFontStyle: TFontStyles;
   LSavedFontColor: TColor;
   LSavedBrushStyle: TBrushStyle;
@@ -263,8 +295,8 @@ begin
   if Context.EditView <> nil then
     FCurrentLine := Context.EditView.CursorPos.Line;
 
-  // Display scope check: in current-line mode, only paint the caret line
-  if (BlameSettings.DisplayScope = dsCurrentLine) and (LLogicalLine <> FCurrentLine) then
+  // Only paint the annotation for the caret line
+  if LLogicalLine <> FCurrentLine then
     Exit;
 
   // Get the file name from the edit view
@@ -325,19 +357,28 @@ begin
       LAnnotationColor := DeriveAnnotationColor;
     LCanvas.Font.Color := LAnnotationColor;
 
-    // Compute X position: after visible text + 3 chars padding
+    // Base X position: after visible text + 3 chars padding
     LAnnotationX := Context.LineState.VisibleTextRect.Right +
       (Context.CellSize.cx * 3);
 
-    // Caret-anchored: only for caret line, only when setting is active
-    if (BlameSettings.AnnotationPosition = apCaretColumn) and
-       (LLogicalLine = FCurrentLine) and
-       (Context.EditView <> nil) and
-       (Context.EditView.CursorPos.Col > 0) then
-    begin
-      LCaretX := (Context.EditView.CursorPos.Col - 1) * Context.CellSize.cx +
-        Context.LineState.VisibleTextRect.Left;
-      LAnnotationX := Max(LCaretX + (Context.CellSize.cx * 3), LAnnotationX);
+    case BlameSettings.AnnotationPosition of
+      apCaretColumn:
+      begin
+        // Caret-anchored: right of cursor with gap, or right of end-of-line if longer
+        if (Context.EditView <> nil) and (Context.EditView.CursorPos.Col > 0) then
+        begin
+          LCaretX := (Context.EditView.CursorPos.Col - 1) * Context.CellSize.cx +
+            Context.LineState.VisibleTextRect.Left;
+          LAnnotationX := Max(LCaretX + (Context.CellSize.cx * 3), LAnnotationX);
+        end;
+      end;
+      apRightAligned:
+      begin
+        // Right-aligned in editor window, or after end-of-line with gap if line overflows
+        LTextWidth := LCanvas.TextWidth(LText);
+        LRightAlignedX := Rect.Right - LTextWidth - (Context.CellSize.cx * 2);
+        LAnnotationX := Max(LRightAlignedX, LAnnotationX);
+      end;
     end;
 
     // Store annotation position for click hit-testing
@@ -349,26 +390,33 @@ begin
     // Transparent background for annotation text
     LCanvas.Brush.Style := bsClear;
 
-    // Two-part rendering: underlined hash prefix + italic rest
-    LHashLen := GetAnnotationClickableLength(LBlameData.Lines[LLineIndex], BlameSettings);
-    if LHashLen > 0 then
+    // Render annotation text
+    if BlameSettings.PopupTrigger = ptClick then
     begin
-      // Draw hash prefix with underline + italic (hotlink style)
-      LHashText := Copy(LText, 1, LHashLen);
-      LRestText := Copy(LText, LHashLen + 1);
-      LCanvas.Font.Style := [fsUnderline, fsItalic];
-      LCanvas.TextOut(LAnnotationX, Rect.Top, LHashText);
-      LHashWidth := LCanvas.TextWidth(LHashText);
-      // Store hash width for click hit-testing
-      if GHashWidthByRow <> nil then
-        GHashWidthByRow.AddOrSetValue(Rect.Top, LHashWidth);
-      // Draw remaining text with italic only
-      LCanvas.Font.Style := [fsItalic];
-      LCanvas.TextOut(LAnnotationX + LHashWidth, Rect.Top, LRestText);
+      // Click mode: underlined hash prefix (hotlink) + italic rest
+      LHashLen := GetAnnotationClickableLength(LBlameData.Lines[LLineIndex], BlameSettings);
+      if LHashLen > 0 then
+      begin
+        LHashText := Copy(LText, 1, LHashLen);
+        LRestText := Copy(LText, LHashLen + 1);
+        LCanvas.Font.Style := [fsUnderline, fsItalic];
+        LCanvas.TextOut(LAnnotationX, Rect.Top, LHashText);
+        LHashWidth := LCanvas.TextWidth(LHashText);
+        if GHashWidthByRow <> nil then
+          GHashWidthByRow.AddOrSetValue(Rect.Top, LHashWidth);
+        LCanvas.Font.Style := [fsItalic];
+        LCanvas.TextOut(LAnnotationX + LHashWidth, Rect.Top, LRestText);
+      end
+      else
+      begin
+        if GHashWidthByRow <> nil then
+          GHashWidthByRow.AddOrSetValue(Rect.Top, 0);
+        LCanvas.TextOut(LAnnotationX, Rect.Top, LText);
+      end;
     end
     else
     begin
-      // Uncommitted lines: plain italic, no underline, not clickable
+      // Hover mode: plain italic, no hotlink underline
       if GHashWidthByRow <> nil then
         GHashWidthByRow.AddOrSetValue(Rect.Top, 0);
       LCanvas.TextOut(LAnnotationX, Rect.Top, LText);
@@ -436,8 +484,101 @@ end;
 
 procedure TDXBlameRenderer.EditorMouseMove(const Editor: TWinControl;
   Shift: TShiftState; X, Y: Integer);
+var
+  LPair: TPair<Integer, Integer>;
+  LRowTop: Integer;
+  LAnnotationX: Integer;
+  LLogicalLine: Integer;
+  LLineIndex: Integer;
+  LBlameData: TBlameData;
+  LScreenPos: TPoint;
+  LRepoRoot: string;
+  LRelPath: string;
 begin
-  // No action needed
+  if BlameSettings.PopupTrigger <> ptHover then
+    Exit;
+  if not BlameSettings.Enabled then
+    Exit;
+  if GAnnotationXByRow = nil then
+    Exit;
+  if GCellHeight <= 0 then
+    Exit;
+
+  // Check if mouse is over any annotation area
+  LLogicalLine := -1;
+  LRowTop := 0;
+  LAnnotationX := 0;
+  for LPair in GAnnotationXByRow do
+  begin
+    LRowTop := LPair.Key;
+    if (Y >= LRowTop) and (Y < LRowTop + GCellHeight) and (X >= LPair.Value) then
+    begin
+      LAnnotationX := LPair.Value;
+      if (GLineByRow <> nil) then
+        GLineByRow.TryGetValue(LRowTop, LLogicalLine);
+      Break;
+    end;
+  end;
+
+  if LLogicalLine <= 0 then
+  begin
+    // Mouse not over annotation — start hide timer if popup is showing
+    if (GHoverPopupLine > 0) and (GHoverCheckTimer <> nil) then
+      GHoverCheckTimer.Enabled := True;
+    Exit;
+  end;
+
+  // Mouse is over annotation — cancel any pending hide
+  if GHoverCheckTimer <> nil then
+    GHoverCheckTimer.Enabled := False;
+
+  // Already showing popup for this line
+  if (GPopup <> nil) and GPopup.Visible and (GHoverPopupLine = LLogicalLine) then
+    Exit;
+
+  // Get blame data for hover
+  if FCurrentFileName = '' then
+    Exit;
+  if not BlameEngine.Cache.TryGet(FCurrentFileName, LBlameData) then
+    Exit;
+
+  LLineIndex := LLogicalLine - 1;
+  if (LLineIndex < 0) or (LLineIndex >= Length(LBlameData.Lines)) then
+    Exit;
+
+  // Compute screen position for popup near the annotation
+  LScreenPos := Editor.ClientToScreen(Point(LAnnotationX, LRowTop + GCellHeight));
+
+  // Compute relative file path
+  LRepoRoot := BlameEngine.RepoRoot;
+  if LRepoRoot <> '' then
+    LRelPath := ExtractRelativePath(
+      IncludeTrailingPathDelimiter(LRepoRoot), FCurrentFileName)
+  else
+    LRelPath := ExtractFileName(FCurrentFileName);
+  LRelPath := StringReplace(LRelPath, '\', '/', [rfReplaceAll]);
+
+  // Store annotation screen rect for hover check timer
+  GHoverAnnotationScreenRect := Rect(
+    Editor.ClientToScreen(Point(LAnnotationX, LRowTop)).X,
+    Editor.ClientToScreen(Point(LAnnotationX, LRowTop)).Y,
+    Editor.ClientToScreen(Point(Editor.Width, LRowTop + GCellHeight)).X,
+    Editor.ClientToScreen(Point(Editor.Width, LRowTop + GCellHeight)).Y);
+
+  // Create or show popup
+  if GPopup = nil then
+    GPopup := TDXBlamePopup.Create(nil);
+
+  GHoverPopupLine := LLogicalLine;
+
+  if GPopup.Visible then
+    GPopup.UpdateContent(LBlameData.Lines[LLineIndex], LRepoRoot, LRelPath)
+  else
+    GPopup.ShowForHover(LBlameData.Lines[LLineIndex], LScreenPos, LRepoRoot, LRelPath);
+
+  // Start hover check timer
+  if GHoverCheckTimer <> nil then
+    GHoverCheckTimer.Enabled := True;
 end;
 
 procedure TDXBlameRenderer.EditorMouseUp(const Editor: TWinControl;
@@ -465,6 +606,9 @@ begin
   if Button <> mbLeft then
     Exit;
   if not BlameSettings.Enabled then
+    Exit;
+  // In hover mode, popup is triggered by mouse move, not click
+  if BlameSettings.PopupTrigger = ptHover then
     Exit;
   if GAnnotationXByRow = nil then
     Exit;
@@ -557,6 +701,25 @@ begin
   // No action needed
 end;
 
+{ THoverTimerHelper }
+
+procedure THoverTimerHelper.OnHoverCheck(Sender: TObject);
+var
+  LCursorPos: TPoint;
+begin
+  GetCursorPos(LCursorPos);
+  if (GPopup <> nil) and GPopup.Visible then
+  begin
+    // Keep popup if cursor is over annotation area or popup itself
+    if PtInRect(GHoverAnnotationScreenRect, LCursorPos) or
+       PtInRect(GPopup.BoundsRect, LCursorPos) then
+      Exit;
+    GPopup.Hide;
+  end;
+  GHoverPopupLine := -1;
+  GHoverCheckTimer.Enabled := False;
+end;
+
 { Module-level helpers }
 
 procedure InvalidateAllEditors;
@@ -584,6 +747,17 @@ begin
   if GHashWidthByRow = nil then
     GHashWidthByRow := TDictionary<Integer, Integer>.Create;
 
+  // Initialize hover timer
+  if GHoverTimerHelper = nil then
+    GHoverTimerHelper := THoverTimerHelper.Create;
+  if GHoverCheckTimer = nil then
+  begin
+    GHoverCheckTimer := TTimer.Create(nil);
+    GHoverCheckTimer.Interval := 250;
+    GHoverCheckTimer.Enabled := False;
+    GHoverCheckTimer.OnTimer := GHoverTimerHelper.OnHoverCheck;
+  end;
+
   if Supports(BorlandIDEServices, INTACodeEditorServices, LServices) then
     GRendererIndex := LServices.AddEditorEventsNotifier(TDXBlameRenderer.Create);
 end;
@@ -604,6 +778,8 @@ initialization
 
 finalization
   CleanupPopup;
+  FreeAndNil(GHoverCheckTimer);
+  FreeAndNil(GHoverTimerHelper);
   FreeAndNil(GAnnotationXByRow);
   FreeAndNil(GLineByRow);
   FreeAndNil(GHashWidthByRow);

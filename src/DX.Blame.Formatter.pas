@@ -1,13 +1,13 @@
 /// <summary>
 /// DX.Blame.Formatter
-/// Pure formatting functions for blame annotation text and color derivation.
+/// Pure formatting functions for blame annotation text.
 /// </summary>
 ///
 /// <remarks>
 /// Provides FormatBlameAnnotation (assembles display text from TBlameLineInfo
 /// and TDXBlameSettings), FormatRelativeTime (human-readable time deltas),
-/// and DeriveAnnotationColor (theme-adaptive muted color). All functions
-/// except DeriveAnnotationColor are pure and depend only on RTL.
+/// GetAnnotationClickableLength, and GetDiffLineColor. All functions are
+/// pure and depend only on RTL — no ToolsAPI dependency.
 /// </remarks>
 ///
 /// <copyright>
@@ -41,9 +41,6 @@ function FormatBlameAnnotation(const ALineInfo: TBlameLineInfo;
 function GetAnnotationClickableLength(const ALineInfo: TBlameLineInfo;
   const ASettings: TDXBlameSettings): Integer;
 
-/// <summary>Derives a muted annotation color from the editor background.</summary>
-function DeriveAnnotationColor: TColor;
-
 /// <summary>
 /// Pure function that determines the display color for a diff line based on
 /// its prefix characters, theme mode, and a fallback default color.
@@ -57,9 +54,7 @@ uses
   System.DateUtils,
   System.StrUtils,
   System.Math,
-  Winapi.Windows,
-  ToolsAPI,
-  ToolsAPI.Editor;
+  Winapi.Windows;
 
 function FormatRelativeTime(ADateTime: TDateTime): string;
 var
@@ -145,23 +140,6 @@ begin
     else
       Result := 0;
     end;
-  end;
-end;
-
-function DeriveAnnotationColor: TColor;
-var
-  LServices: INTACodeEditorServices;
-  LBgColor: TColor;
-  LR, LG, LB: Byte;
-begin
-  Result := clGray;
-  if Supports(BorlandIDEServices, INTACodeEditorServices, LServices) then
-  begin
-    LBgColor := ColorToRGB(LServices.Options.BackgroundColor[atWhiteSpace]);
-    LR := (GetRValue(LBgColor) + 128) div 2;
-    LG := (GetGValue(LBgColor) + 128) div 2;
-    LB := (GetBValue(LBgColor) + 128) div 2;
-    Result := TColor(RGB(LR, LG, LB));
   end;
 end;
 

@@ -19,6 +19,7 @@ interface
 
 uses
   DUnitX.TestFramework,
+  DX.Blame.VCS.Types,
   DX.Blame.Git.Types,
   DX.Blame.Cache;
 

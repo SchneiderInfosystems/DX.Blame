@@ -3,7 +3,7 @@ object FormDXBlameSettings: TFormDXBlameSettings
   Top = 0
   BorderStyle = bsDialog
   Caption = 'DX Blame Settings'
-  ClientHeight = 635
+  ClientHeight = 640
   ClientWidth = 400
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -136,45 +136,46 @@ object FormDXBlameSettings: TFormDXBlameSettings
     Left = 12
     Top = 264
     Width = 376
-    Height = 165
+    Height = 160
     Caption = ' Display '
     TabOrder = 2
-    object RadioButtonCurrentLine: TRadioButton
-      Left = 16
-      Top = 24
-      Width = 140
-      Height = 17
-      Caption = 'Current line only'
-      Checked = True
-      TabOrder = 0
-      TabStop = True
-    end
-    object RadioButtonAllLines: TRadioButton
-      Left = 200
-      Top = 24
-      Width = 140
-      Height = 17
-      Caption = 'All lines'
-      TabOrder = 1
-    end
     object LabelAnnotationPosition: TLabel
       Left = 16
-      Top = 56
+      Top = 24
       Width = 110
       Height = 15
       Caption = 'Annotation Position:'
     end
     object ComboBoxAnnotationPosition: TComboBox
       Left = 140
+      Top = 21
+      Width = 216
+      Height = 23
+      Style = csDropDownList
+      ItemIndex = 0
+      TabOrder = 0
+      Items.Strings = (
+        'Caret-anchored (default)'
+        'Right-aligned in editor')
+    end
+    object LabelPopupTrigger: TLabel
+      Left = 16
+      Top = 56
+      Width = 78
+      Height = 15
+      Caption = 'Popup Trigger:'
+    end
+    object ComboBoxPopupTrigger: TComboBox
+      Left = 140
       Top = 53
       Width = 216
       Height = 23
       Style = csDropDownList
       ItemIndex = 0
-      TabOrder = 2
+      TabOrder = 1
       Items.Strings = (
-        'End of line (default)'
-        'Caret-anchored')
+        'Hover (default)'
+        'Click on hash link')
     end
     object CheckBoxShowInline: TCheckBox
       Left = 16
@@ -184,7 +185,7 @@ object FormDXBlameSettings: TFormDXBlameSettings
       Caption = 'Show inline annotations'
       Checked = True
       State = cbChecked
-      TabOrder = 3
+      TabOrder = 2
     end
     object CheckBoxShowStatusbar: TCheckBox
       Left = 16
@@ -192,12 +193,14 @@ object FormDXBlameSettings: TFormDXBlameSettings
       Width = 340
       Height = 17
       Caption = 'Show in Statusbar'
-      TabOrder = 4
+      Checked = True
+      State = cbChecked
+      TabOrder = 3
     end
   end
   object GroupBoxVCS: TGroupBox
     Left = 12
-    Top = 440
+    Top = 435
     Width = 376
     Height = 55
     Caption = ' Version Control '
@@ -225,7 +228,7 @@ object FormDXBlameSettings: TFormDXBlameSettings
   end
   object GroupBoxHotkey: TGroupBox
     Left = 12
-    Top = 505
+    Top = 500
     Width = 376
     Height = 70
     Caption = ' Hotkey '
@@ -257,26 +260,35 @@ object FormDXBlameSettings: TFormDXBlameSettings
       ParentFont = False
     end
   end
+  object ButtonResetDefaults: TButton
+    Left = 12
+    Top = 596
+    Width = 120
+    Height = 28
+    Caption = 'Reset to Defaults'
+    TabOrder = 5
+    OnClick = ButtonResetDefaultsClick
+  end
   object ButtonOK: TButton
     Left = 216
-    Top = 595
+    Top = 596
     Width = 80
     Height = 28
     Caption = 'OK'
     Default = True
     ModalResult = 1
-    TabOrder = 5
+    TabOrder = 6
     OnClick = ButtonOKClick
   end
   object ButtonCancel: TButton
     Left = 308
-    Top = 595
+    Top = 596
     Width = 80
     Height = 28
     Cancel = True
     Caption = 'Cancel'
     ModalResult = 2
-    TabOrder = 6
+    TabOrder = 7
     OnClick = ButtonCancelClick
   end
   object ColorDialog: TColorDialog

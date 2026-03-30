@@ -133,10 +133,10 @@ Access settings via **Tools &gt; Options &gt; Third Party &gt; DX Blame**.
 | Date Format | Relative ("3 days ago") or absolute | Relative |
 | Max Author Length | Truncate long author names | 20 |
 | Annotation Color | Color for blame text (auto-derived from theme) | Auto |
-| Display Scope | Current line only or all lines | Current line |
-| Annotation Position | End of line or caret-anchored | End of line |
+| Annotation Position | Caret-anchored or right-aligned in editor | Caret-anchored |
+| Popup Trigger | Hover over annotation or click on hash link | Hover |
 | Show Inline | Enable/disable inline annotations | On |
-| Show in Statusbar | Enable/disable statusbar blame | Off |
+| Show in Statusbar | Enable/disable statusbar blame | On |
 | VCS Preference | Auto / Git / Mercurial | Auto |
 | Hotkey | Keyboard shortcut for toggle | Ctrl+Alt+B |
 

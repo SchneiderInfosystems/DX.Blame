@@ -52,10 +52,10 @@ type
     PanelColorPreview: TPanel;
     ButtonChooseColor: TButton;
     GroupBoxDisplay: TGroupBox;
-    RadioButtonCurrentLine: TRadioButton;
-    RadioButtonAllLines: TRadioButton;
     LabelAnnotationPosition: TLabel;
     ComboBoxAnnotationPosition: TComboBox;
+    LabelPopupTrigger: TLabel;
+    ComboBoxPopupTrigger: TComboBox;
     CheckBoxShowInline: TCheckBox;
     CheckBoxShowStatusbar: TCheckBox;
     GroupBoxVCS: TGroupBox;
@@ -64,10 +64,12 @@ type
     GroupBoxHotkey: TGroupBox;
     LabelHotkeyValue: TLabel;
     LabelHotkeyInfo: TLabel;
+    ButtonResetDefaults: TButton;
     ColorDialog: TColorDialog;
     procedure RadioButtonCustomColorClick(Sender: TObject);
     procedure RadioButtonAutoColorClick(Sender: TObject);
     procedure ButtonChooseColorClick(Sender: TObject);
+    procedure ButtonResetDefaultsClick(Sender: TObject);
   private
     FSelectedColor: TColor;
     /// <summary>Enables or disables the color preview panel and choose button.</summary>
@@ -114,12 +116,8 @@ begin
   PanelColorPreview.Color := FSelectedColor;
   UpdateColorPreviewState;
 
-  if LSettings.DisplayScope = dsCurrentLine then
-    RadioButtonCurrentLine.Checked := True
-  else
-    RadioButtonAllLines.Checked := True;
-
   ComboBoxAnnotationPosition.ItemIndex := Ord(LSettings.AnnotationPosition);
+  ComboBoxPopupTrigger.ItemIndex := Ord(LSettings.PopupTrigger);
   CheckBoxShowInline.Checked := LSettings.ShowInline;
   CheckBoxShowStatusbar.Checked := LSettings.ShowStatusbar;
 
@@ -146,12 +144,8 @@ begin
   LSettings.UseCustomColor := RadioButtonCustomColor.Checked;
   LSettings.CustomColor := FSelectedColor;
 
-  if RadioButtonAllLines.Checked then
-    LSettings.DisplayScope := dsAllLines
-  else
-    LSettings.DisplayScope := dsCurrentLine;
-
   LSettings.AnnotationPosition := TDXBlameAnnotationPosition(ComboBoxAnnotationPosition.ItemIndex);
+  LSettings.PopupTrigger := TDXBlamePopupTrigger(ComboBoxPopupTrigger.ItemIndex);
   LSettings.ShowInline := CheckBoxShowInline.Checked;
   LSettings.ShowStatusbar := CheckBoxShowStatusbar.Checked;
 
@@ -190,6 +184,12 @@ begin
     FSelectedColor := ColorDialog.Color;
     PanelColorPreview.Color := FSelectedColor;
   end;
+end;
+
+procedure TFrameDXBlameSettings.ButtonResetDefaultsClick(Sender: TObject);
+begin
+  BlameSettings.ResetToDefaults;
+  LoadFromSettings;
 end;
 
 procedure TFrameDXBlameSettings.UpdateColorPreviewState;
