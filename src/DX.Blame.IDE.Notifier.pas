@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// DX.Blame.IDE.Notifier
 /// OTA notifiers for IDE file events that drive the blame pipeline.
 /// </summary>

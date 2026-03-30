@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// DX.Blame.Cache
 /// Thread-safe per-file blame data cache.
 /// </summary>

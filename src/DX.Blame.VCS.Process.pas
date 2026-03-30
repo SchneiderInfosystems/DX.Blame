@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// DX.Blame.VCS.Process
 /// CreateProcess wrapper for VCS CLI tools with pipe capture and cancellation.
 /// </summary>

@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// DX.Blame.Hg.Provider
 /// Full IVCSProvider implementation for Mercurial.
 /// </summary>

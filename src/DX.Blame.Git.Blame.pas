@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// DX.Blame.Git.Blame
 /// Parser for git blame --line-porcelain output.
 /// </summary>

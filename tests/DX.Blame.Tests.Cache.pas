@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// DX.Blame.Tests.Cache
 /// Unit tests for the thread-safe blame data cache.
 /// </summary>

@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// DX.Blame.VCS.Types
 /// VCS-neutral data contracts for the blame data pipeline.
 /// </summary>

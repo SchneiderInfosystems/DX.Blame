@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// DX.Blame.Tests.DiffFormatter
 /// Unit tests for diff line color assignment logic.
 /// </summary>

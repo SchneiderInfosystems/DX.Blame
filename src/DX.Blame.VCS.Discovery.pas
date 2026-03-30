@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// DX.Blame.VCS.Discovery
 /// VCS detection orchestrator with dual-VCS prompt and persistence.
 /// </summary>

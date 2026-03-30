@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// DX.Blame.Tests.Git.Blame
 /// Unit tests for the git blame porcelain output parser.
 /// </summary>

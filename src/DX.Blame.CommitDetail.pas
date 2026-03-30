@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// DX.Blame.CommitDetail
 /// Commit detail cache and async fetch for full commit messages and diffs.
 /// </summary>

@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// DX.Blame.VCS.Provider
 /// VCS-neutral provider interface for blame, commit detail, and discovery operations.
 /// </summary>

@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// DX.Blame.Git.Provider
 /// Git-specific IVCSProvider implementation delegating to existing Git units.
 /// </summary>

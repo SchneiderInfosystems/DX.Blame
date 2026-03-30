@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// DX.Blame.Tests.CommitDetail
 /// Unit tests for TCommitDetailCache CRUD operations.
 /// </summary>

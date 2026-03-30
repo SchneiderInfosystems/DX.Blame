@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// DX.Blame.KeyBinding
 /// IOTAKeyboardBinding for Ctrl+Alt+B toggle.
 /// </summary>

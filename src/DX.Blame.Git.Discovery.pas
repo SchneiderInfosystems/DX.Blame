@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// DX.Blame.Git.Discovery
 /// Git executable finder and repository root detection.
 /// </summary>

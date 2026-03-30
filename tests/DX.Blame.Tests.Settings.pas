@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// DX.Blame.Tests.Settings
 /// Unit tests for TDXBlameSettings INI persistence and singleton access.
 /// </summary>

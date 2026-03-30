@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// DX.Blame.Tests.Git.Discovery
 /// Integration tests for git executable discovery and repo root detection.
 /// </summary>

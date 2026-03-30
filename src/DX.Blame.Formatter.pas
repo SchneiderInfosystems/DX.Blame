@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// DX.Blame.Formatter
 /// Pure formatting functions for blame annotation text.
 /// </summary>

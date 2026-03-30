@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// DX.Blame.Navigation
 /// Parent commit navigation for blame archaeology.
 /// </summary>

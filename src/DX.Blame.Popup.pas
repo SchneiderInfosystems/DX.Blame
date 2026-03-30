@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// DX.Blame.Popup
 /// Borderless popup panel for displaying commit information on annotation click.
 /// </summary>

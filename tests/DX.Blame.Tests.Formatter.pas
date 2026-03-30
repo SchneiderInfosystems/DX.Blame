@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// DX.Blame.Tests.Formatter
 /// Unit tests for blame annotation formatting and color derivation.
 /// </summary>

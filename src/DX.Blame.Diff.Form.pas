@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// DX.Blame.Diff.Form
 /// Modal dialog for displaying color-coded unified diff output for a commit.
 /// </summary>

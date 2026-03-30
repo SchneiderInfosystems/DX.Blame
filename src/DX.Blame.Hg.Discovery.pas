@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// DX.Blame.Hg.Discovery
 /// Mercurial executable finder and repository root detection.
 /// </summary>

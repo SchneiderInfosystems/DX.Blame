@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// DX.Blame.Statusbar
 /// Statusbar panel component that displays blame info for the current caret line.
 /// </summary>

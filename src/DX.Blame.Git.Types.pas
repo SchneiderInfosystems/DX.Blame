@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// DX.Blame.Git.Types
 /// Git-specific sentinel constants for uncommitted line detection.
 /// </summary>

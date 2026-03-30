@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// DX.Blame.Git.Process
 /// Thin Git-specific subclass of the VCS process wrapper.
 /// </summary>
