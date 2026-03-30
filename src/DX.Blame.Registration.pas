@@ -34,6 +34,7 @@ uses
   ToolsAPI,
   System.SysUtils,
   System.Classes,
+  Vcl.ExtCtrls,
   Winapi.Windows,
   DX.Blame.Version,
   DX.Blame.IDE.Notifier,
@@ -50,6 +51,25 @@ var
   GAboutPluginIndex: Integer = -1;
   GStatusbar: TDXBlameStatusbar = nil;
   GAddInOptions: INTAAddInOptions = nil;
+  GDeferredInitDone: Boolean = False;
+
+type
+  /// <summary>
+  /// Helper for deferred initialization after IDE startup.
+  /// Register is called before the IDE is fully loaded; TopEditWindow
+  /// and GetActiveProject return nil at that point. This helper retries
+  /// context menu, statusbar, and blame-engine initialization via timer.
+  /// </summary>
+  TDXBlameStartupHelper = class
+  private
+    FRetryCount: Integer;
+  public
+    procedure OnStartupTimer(Sender: TObject);
+  end;
+
+var
+  GStartupTimer: TTimer = nil;
+  GStartupHelper: TDXBlameStartupHelper = nil;
 
 type
   /// <summary>
@@ -140,6 +160,84 @@ begin
     GStatusbar.UpdateForLine(AFileName, ALine);
 end;
 
+/// <summary>
+/// Retries initialization steps that require a fully loaded IDE.
+/// Called from the startup timer and at the end of Register (for manual install).
+/// All operations are idempotent — safe to call multiple times.
+/// </summary>
+procedure TryDeferredInit;
+var
+  LModuleServices: IOTAModuleServices;
+  LProject: IOTAProject;
+  LNTAEditorServices: INTAEditorServices;
+  LEditWindow: INTAEditWindow;
+begin
+  if GDeferredInitDone then
+    Exit;
+
+  // Initialize blame engine if not done yet
+  if not BlameEngine.VCSAvailable then
+  begin
+    if Supports(BorlandIDEServices, IOTAModuleServices, LModuleServices) then
+    begin
+      LProject := LModuleServices.GetActiveProject;
+      if LProject <> nil then
+        BlameEngine.Initialize(ExtractFileDir(LProject.FileName))
+      else
+        Exit; // No project yet — retry later
+    end;
+  end;
+
+  // Attach context menu (idempotent — exits if already hooked)
+  AttachContextMenu;
+
+  // Attach statusbar if not yet attached
+  if (GStatusbar <> nil) then
+  begin
+    if Supports(BorlandIDEServices, INTAEditorServices, LNTAEditorServices) then
+    begin
+      LEditWindow := LNTAEditorServices.TopEditWindow;
+      if (LEditWindow <> nil) and (LEditWindow.StatusBar <> nil) then
+        GStatusbar.AttachToStatusBar(LEditWindow.StatusBar);
+    end;
+  end;
+
+  // Request blame for files that were already open before initialization
+  BlameAlreadyOpenFiles;
+
+  GDeferredInitDone := True;
+end;
+
+{ TDXBlameStartupHelper }
+
+procedure TDXBlameStartupHelper.OnStartupTimer(Sender: TObject);
+begin
+  GStartupTimer.Enabled := False;
+
+  TryDeferredInit;
+
+  if not GDeferredInitDone then
+  begin
+    Inc(FRetryCount);
+    if FRetryCount < 10 then
+    begin
+      GStartupTimer.Interval := 1000;
+      GStartupTimer.Enabled := True;
+    end
+    else
+    begin
+      // Give up after 10 retries — IDE may have no project open
+      FreeAndNil(GStartupTimer);
+      FreeAndNil(GStartupHelper);
+    end;
+  end
+  else
+  begin
+    FreeAndNil(GStartupTimer);
+    FreeAndNil(GStartupHelper);
+  end;
+end;
+
 procedure Register;
 var
   LWizardServices: IOTAWizardServices;
@@ -211,6 +309,22 @@ begin
 
   // Request blame for files already open before the package loaded
   BlameAlreadyOpenFiles;
+
+  // Mark deferred init as done if all critical parts succeeded during Register
+  // (manual install case — IDE is fully loaded at this point)
+  if BlameEngine.VCSAvailable then
+    GDeferredInitDone := True;
+
+  // Start deferred init timer for IDE startup scenario where Register is called
+  // before project/editor are available. Timer retries until IDE is fully loaded.
+  if not GDeferredInitDone then
+  begin
+    GStartupHelper := TDXBlameStartupHelper.Create;
+    GStartupTimer := TTimer.Create(nil);
+    GStartupTimer.Interval := 500;
+    GStartupTimer.OnTimer := GStartupHelper.OnStartupTimer;
+    GStartupTimer.Enabled := True;
+  end;
 end;
 
 initialization
@@ -228,6 +342,10 @@ initialization
   end;
 
 finalization
+  // Cancel startup timer if still running
+  FreeAndNil(GStartupTimer);
+  FreeAndNil(GStartupHelper);
+
   // Reverse-order cleanup to prevent access violations on BPL unload:
   // 1. Detach context menu (must happen before any other cleanup)
   DetachContextMenu;

@@ -1,4 +1,4 @@
-/// <summary>
+﻿/// <summary>
 /// DX.Blame.Engine
 /// Central orchestrator for the async blame data pipeline.
 /// </summary>
@@ -248,6 +248,11 @@ var
   LThread: TBlameThread;
   LExisting: TBlameThread;
 begin
+  // Lazy initialization: during IDE startup, Register may be called before
+  // any project is active, leaving FVCSAvailable = False. Try from file path.
+  if not FVCSAvailable and (FRepoRoot = '') then
+    Initialize(ExtractFileDir(AFileName));
+
   if not FVCSAvailable then
   begin
     {$IFDEF DEBUG}
