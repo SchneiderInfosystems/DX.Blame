@@ -1,15 +1,18 @@
-﻿/// <summary>
+ï»¿/// <summary>
 /// DX.Blame.Renderer
 /// INTACodeEditorEvents implementation for inline blame painting and click detection.
 /// </summary>
 ///
 /// <remarks>
 /// TDXBlameRenderer hooks into the Delphi IDE code editor via
-/// INTACodeEditorEvents and INTACodeEditorEvents370 to paint blame
-/// annotations inline after the last character of each line. Annotations
-/// are rendered in italic style using a theme-derived muted color.
-/// Canvas state is saved and restored to prevent IDE painting corruption.
-/// Click detection on annotation areas triggers the blame popup panel.
+/// INTACodeEditorEvents to paint blame annotations inline after the last
+/// character of each line. Annotations are rendered in italic style using
+/// a theme-derived muted color. Canvas state is saved and restored to
+/// prevent IDE painting corruption. On Delphi 12, click detection calls
+/// DoAnnotationClick directly from EditorMouseDown without consuming the
+/// event. On Delphi 13+, TDXBlameRendererD13 (DX.Blame.Renderer.D13) extends
+/// this class with INTACodeEditorEvents370 to consume clicks and track the
+/// caret via EditorSetCaretPos.
 /// </remarks>
 ///
 /// <copyright>
@@ -35,14 +38,14 @@ type
   /// <summary>
   /// Editor events notifier that paints blame annotations inline after
   /// the last character of each code line and handles annotation clicks.
+  /// Compatible with Delphi 12+. For Delphi 13 event-consuming behaviour
+  /// see TDXBlameRendererD13 in DX.Blame.Renderer.D13.
   /// </summary>
-  TDXBlameRenderer = class(TNotifierObject, INTACodeEditorEvents,
-    INTACodeEditorEvents370)
-  private
+  TDXBlameRenderer = class(TNotifierObject, INTACodeEditorEvents)
+  protected
     FCurrentLine: Integer;
     FCurrentEditor: TWinControl;
     FCurrentFileName: string;
-  protected
     { INTACodeEditorEvents }
     procedure EditorScrolled(const Editor: TWinControl;
       const Direction: TCodeEditorScrollDirection);
@@ -52,11 +55,11 @@ type
     procedure EditorUnElided(const Editor: TWinControl;
       const LogicalLineNum: Integer);
     procedure EditorMouseDown(const Editor: TWinControl;
-      Button: TMouseButton; Shift: TShiftState; X, Y: Integer); overload;
+      Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure EditorMouseMove(const Editor: TWinControl;
       Shift: TShiftState; X, Y: Integer);
     procedure EditorMouseUp(const Editor: TWinControl;
-      Button: TMouseButton; Shift: TShiftState; X, Y: Integer); overload;
+      Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure BeginPaint(const Editor: TWinControl;
       const ForceFullRepaint: Boolean);
     procedure EndPaint(const Editor: TWinControl);
@@ -71,26 +74,22 @@ type
       const Hilight, BeforeEvent: Boolean;
       var AllowDefaultPainting: Boolean;
       const Context: INTACodeEditorPaintContext);
-    function AllowedEvents: TCodeEditorEvents;
+    function AllowedEvents: TCodeEditorEvents; virtual;
     function AllowedGutterStages: TPaintGutterStages;
     function AllowedLineStages: TPaintLineStages;
     function UIOptions: TCodeEditorUIOptions;
-    { INTACodeEditorEvents370 }
-    procedure EditorMouseDown(const Editor: TWinControl;
+    /// <summary>
+    /// Shared click-handling logic for annotation hit-test and popup display.
+    /// Called from EditorMouseDown (D12) and TDXBlameRendererD13.EditorMouseDown
+    /// (D13, with var Handled). Sets Handled to True when the click is consumed.
+    /// </summary>
+    procedure DoAnnotationClick(const Editor: TWinControl;
       Button: TMouseButton; Shift: TShiftState; X, Y: Integer;
-      var Handled: Boolean); overload;
-    procedure EditorMouseUp(const Editor: TWinControl;
-      Button: TMouseButton; Shift: TShiftState; X, Y: Integer;
-      var Handled: Boolean); overload;
-    procedure EditorKeyDown(const Editor: TWinControl; Key: Word;
-      Shift: TShiftState; var Handled: Boolean);
-    procedure EditorKeyUp(const Editor: TWinControl; Key: Word;
-      Shift: TShiftState; var Handled: Boolean);
-    procedure EditorSetCaretPos(const Editor: TWinControl; X, Y: Integer);
+      var Handled: Boolean);
   end;
 
 /// <summary>Registers the renderer notifier with the IDE editor services.</summary>
-procedure RegisterRenderer;
+procedure RegisterRenderer(ANotifier: INTACodeEditorEvents);
 
 /// <summary>Unregisters the renderer notifier from the IDE editor services.</summary>
 procedure UnregisterRenderer;
@@ -185,9 +184,10 @@ end;
 
 function TDXBlameRenderer.AllowedEvents: TCodeEditorEvents;
 begin
-  // cevPaintLineEvents for PaintLine; cevKeyboardEvents ensures
-  // EditorSetCaretPos fires on cursor movement; cevMouseEvents for annotation clicks
-  Result := [cevPaintLineEvents, cevKeyboardEvents, cevMouseEvents];
+  // cevPaintLineEvents for PaintLine; cevMouseEvents for annotation clicks.
+  // On Delphi 13+, TDXBlameRendererD13 overrides this to also include
+  // cevKeyboardEvents for EditorSetCaretPos-based caret tracking.
+  Result := [cevPaintLineEvents, cevMouseEvents];
 end;
 
 function TDXBlameRenderer.AllowedLineStages: TPaintLineStages;
@@ -203,20 +203,6 @@ end;
 function TDXBlameRenderer.UIOptions: TCodeEditorUIOptions;
 begin
   Result := [];
-end;
-
-procedure TDXBlameRenderer.EditorSetCaretPos(const Editor: TWinControl;
-  X, Y: Integer);
-begin
-  // Y is view-relative (row on screen), NOT a logical line number.
-  // We only use this event to trigger a repaint; the actual logical
-  // caret line is read from EditView.CursorPos.Line in PaintLine.
-  FCurrentEditor := Editor;
-  InvalidateAllEditors;
-  // Notify statusbar of caret movement using FCurrentLine from the last paint
-  // cycle. FCurrentLine may lag one paint cycle, which is imperceptible.
-  if Assigned(GOnCaretMoved) and (FCurrentFileName <> '') then
-    GOnCaretMoved(FCurrentFileName, FCurrentLine);
 end;
 
 procedure TDXBlameRenderer.BeginPaint(const Editor: TWinControl;
@@ -476,10 +462,112 @@ begin
   // No action needed
 end;
 
+procedure TDXBlameRenderer.DoAnnotationClick(const Editor: TWinControl;
+  Button: TMouseButton; Shift: TShiftState; X, Y: Integer;
+  var Handled: Boolean);
+var
+  LRowTop: Integer;
+  LAnnotationX: Integer;
+  LLogicalLine: Integer;
+  LLineIndex: Integer;
+  LFileName: string;
+  LBlameData: TBlameData;
+  LScreenPos: TPoint;
+  LRepoRoot: string;
+  LRelPath: string;
+  LPair: TPair<Integer, Integer>;
+  LFound: Boolean;
+begin
+  if Button <> mbLeft then
+    Exit;
+  if not BlameSettings.Enabled then
+    Exit;
+  // In hover mode, popup is triggered by mouse move, not click
+  if BlameSettings.PopupTrigger = ptHover then
+    Exit;
+  if GAnnotationXByRow = nil then
+    Exit;
+  if GCellHeight <= 0 then
+    Exit;
+
+  // Find the row that contains the click Y coordinate
+  LFound := False;
+  LRowTop := 0;
+  LAnnotationX := 0;
+  LLogicalLine := 0;
+
+  for LPair in GAnnotationXByRow do
+  begin
+    LRowTop := LPair.Key;
+    if (Y >= LRowTop) and (Y < LRowTop + GCellHeight) then
+    begin
+      LAnnotationX := LPair.Value;
+      if (GLineByRow <> nil) and GLineByRow.TryGetValue(LRowTop, LLogicalLine) then
+        LFound := True;
+      Break;
+    end;
+  end;
+
+  if not LFound then
+    Exit;
+
+  // Check if click is on the underlined hash region only
+  if X < LAnnotationX then
+    Exit;
+  if (GHashWidthByRow = nil) or not GHashWidthByRow.ContainsKey(LRowTop) then
+    Exit;
+  if GHashWidthByRow[LRowTop] = 0 then
+    Exit; // uncommitted line, not clickable
+  if X >= LAnnotationX + GHashWidthByRow[LRowTop] then
+    Exit;
+
+  // Get blame data for the clicked line
+  LFileName := FCurrentFileName;
+  if LFileName = '' then
+    Exit;
+
+  if not BlameEngine.Cache.TryGet(LFileName, LBlameData) then
+    Exit;
+
+  LLineIndex := LLogicalLine - 1;
+  if (LLineIndex < 0) or (LLineIndex >= Length(LBlameData.Lines)) then
+    Exit;
+
+  // Compute screen position for popup placement
+  LScreenPos := Editor.ClientToScreen(Point(X, Y));
+
+  // Compute relative file path for git commands
+  LRepoRoot := BlameEngine.RepoRoot;
+  if LRepoRoot <> '' then
+    LRelPath := ExtractRelativePath(
+      IncludeTrailingPathDelimiter(LRepoRoot), LFileName)
+  else
+    LRelPath := ExtractFileName(LFileName);
+  LRelPath := StringReplace(LRelPath, '\\', '/', [rfReplaceAll]);
+
+  // Create or update popup
+  if GPopup = nil then
+    GPopup := TDXBlamePopup.Create(nil);
+
+  if GPopup.Visible then
+    GPopup.UpdateContent(LBlameData.Lines[LLineIndex], LRepoRoot, LRelPath)
+  else
+    GPopup.ShowForCommit(LBlameData.Lines[LLineIndex], LScreenPos, LRepoRoot, LRelPath);
+
+  Handled := True;
+end;
+
 procedure TDXBlameRenderer.EditorMouseDown(const Editor: TWinControl;
   Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+var
+  LHandled: Boolean;
 begin
-  // No action needed (non-370 overload)
+  // On Delphi 12 (no INTACodeEditorEvents370), handle clicks directly.
+  // LHandled is discarded; IDE will still process the click normally.
+  // On Delphi 13+, TDXBlameRendererD13 overrides this to a no-op and
+  // handles clicks via EditorMouseDown with var Handled instead.
+  LHandled := False;
+  DoAnnotationClick(Editor, Button, Shift, X, Y, LHandled);
 end;
 
 procedure TDXBlameRenderer.EditorMouseMove(const Editor: TWinControl;
@@ -565,7 +653,7 @@ begin
       IncludeTrailingPathDelimiter(LRepoRoot), FCurrentFileName)
   else
     LRelPath := ExtractFileName(FCurrentFileName);
-  LRelPath := StringReplace(LRelPath, '\', '/', [rfReplaceAll]);
+  LRelPath := StringReplace(LRelPath, '\\', '/', [rfReplaceAll]);
 
   // Store annotation screen rect for hover check timer
   GHoverAnnotationScreenRect := Rect(
@@ -592,120 +680,6 @@ end;
 
 procedure TDXBlameRenderer.EditorMouseUp(const Editor: TWinControl;
   Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
-begin
-  // No action needed
-end;
-
-procedure TDXBlameRenderer.EditorMouseDown(const Editor: TWinControl;
-  Button: TMouseButton; Shift: TShiftState; X, Y: Integer;
-  var Handled: Boolean);
-var
-  LRowTop: Integer;
-  LAnnotationX: Integer;
-  LLogicalLine: Integer;
-  LLineIndex: Integer;
-  LFileName: string;
-  LBlameData: TBlameData;
-  LScreenPos: TPoint;
-  LRepoRoot: string;
-  LRelPath: string;
-  LPair: TPair<Integer, Integer>;
-  LFound: Boolean;
-begin
-  if Button <> mbLeft then
-    Exit;
-  if not BlameSettings.Enabled then
-    Exit;
-  // In hover mode, popup is triggered by mouse move, not click
-  if BlameSettings.PopupTrigger = ptHover then
-    Exit;
-  if GAnnotationXByRow = nil then
-    Exit;
-  if GCellHeight <= 0 then
-    Exit;
-
-  // Find the row that contains the click Y coordinate
-  LFound := False;
-  LRowTop := 0;
-  LAnnotationX := 0;
-  LLogicalLine := 0;
-
-  for LPair in GAnnotationXByRow do
-  begin
-    LRowTop := LPair.Key;
-    if (Y >= LRowTop) and (Y < LRowTop + GCellHeight) then
-    begin
-      LAnnotationX := LPair.Value;
-      if (GLineByRow <> nil) and GLineByRow.TryGetValue(LRowTop, LLogicalLine) then
-        LFound := True;
-      Break;
-    end;
-  end;
-
-  if not LFound then
-    Exit;
-
-  // Check if click is on the underlined hash region only
-  if X < LAnnotationX then
-    Exit;
-  if (GHashWidthByRow = nil) or not GHashWidthByRow.ContainsKey(LRowTop) then
-    Exit;
-  if GHashWidthByRow[LRowTop] = 0 then
-    Exit; // uncommitted line, not clickable
-  if X >= LAnnotationX + GHashWidthByRow[LRowTop] then
-    Exit;
-
-  // Get blame data for the clicked line
-  LFileName := FCurrentFileName;
-  if LFileName = '' then
-    Exit;
-
-  if not BlameEngine.Cache.TryGet(LFileName, LBlameData) then
-    Exit;
-
-  LLineIndex := LLogicalLine - 1;
-  if (LLineIndex < 0) or (LLineIndex >= Length(LBlameData.Lines)) then
-    Exit;
-
-  // Compute screen position for popup placement
-  LScreenPos := Editor.ClientToScreen(Point(X, Y));
-
-  // Compute relative file path for git commands
-  LRepoRoot := BlameEngine.RepoRoot;
-  if LRepoRoot <> '' then
-    LRelPath := ExtractRelativePath(
-      IncludeTrailingPathDelimiter(LRepoRoot), LFileName)
-  else
-    LRelPath := ExtractFileName(LFileName);
-  LRelPath := StringReplace(LRelPath, '\', '/', [rfReplaceAll]);
-
-  // Create or update popup
-  if GPopup = nil then
-    GPopup := TDXBlamePopup.Create(nil);
-
-  if GPopup.Visible then
-    GPopup.UpdateContent(LBlameData.Lines[LLineIndex], LRepoRoot, LRelPath)
-  else
-    GPopup.ShowForCommit(LBlameData.Lines[LLineIndex], LScreenPos, LRepoRoot, LRelPath);
-
-  Handled := True;
-end;
-
-procedure TDXBlameRenderer.EditorMouseUp(const Editor: TWinControl;
-  Button: TMouseButton; Shift: TShiftState; X, Y: Integer;
-  var Handled: Boolean);
-begin
-  // No action needed
-end;
-
-procedure TDXBlameRenderer.EditorKeyDown(const Editor: TWinControl;
-  Key: Word; Shift: TShiftState; var Handled: Boolean);
-begin
-  // No action needed
-end;
-
-procedure TDXBlameRenderer.EditorKeyUp(const Editor: TWinControl;
-  Key: Word; Shift: TShiftState; var Handled: Boolean);
 begin
   // No action needed
 end;
@@ -744,7 +718,7 @@ begin
   FreeAndNil(GPopup);
 end;
 
-procedure RegisterRenderer;
+procedure RegisterRenderer(ANotifier: INTACodeEditorEvents);
 var
   LServices: INTACodeEditorServices;
 begin
@@ -768,7 +742,7 @@ begin
   end;
 
   if Supports(BorlandIDEServices, INTACodeEditorServices, LServices) then
-    GRendererIndex := LServices.AddEditorEventsNotifier(TDXBlameRenderer.Create);
+    GRendererIndex := LServices.AddEditorEventsNotifier(ANotifier);
 end;
 
 procedure UnregisterRenderer;

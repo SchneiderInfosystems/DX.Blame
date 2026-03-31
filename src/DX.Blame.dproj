@@ -82,6 +82,7 @@
             <FormType>dfm</FormType>
         </DCCReference>
         <DCCReference Include="DX.Blame.Renderer.pas"/>
+        <DCCReference Include="DX.Blame.Renderer.D13.pas"/>
         <DCCReference Include="DX.Blame.Statusbar.pas"/>
         <DCCReference Include="DX.Blame.KeyBinding.pas"/>
         <DCCReference Include="DX.Blame.Navigation.pas"/>
