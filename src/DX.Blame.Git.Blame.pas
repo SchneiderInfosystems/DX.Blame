@@ -115,6 +115,10 @@ begin
         // Content line starts with TAB
         if (LLine <> '') and (LLine[1] = #9) then
         begin
+          LInfo.OriginalText := Copy(LLine, 2, Length(LLine));
+          // Strip UTF-8 BOM that git includes on line 1 of BOM-encoded files
+          if (LInfo.OriginalText <> '') and (LInfo.OriginalText[1] = #$FEFF) then
+            Delete(LInfo.OriginalText, 1, 1);
           Inc(LIndex);
           Break;
         end;

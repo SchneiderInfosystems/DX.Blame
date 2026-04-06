@@ -50,6 +50,8 @@ type
     FinalLine: Integer;
     /// <summary>True when the line has not yet been committed.</summary>
     IsUncommitted: Boolean;
+    /// <summary>Original line content from blame output, used to detect edits.</summary>
+    OriginalText: string;
   end;
 
   /// <summary>

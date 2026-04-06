@@ -138,7 +138,14 @@ begin
       else
         LInfo.Summary := ''; // No summary field found
 
-      // Remainder after 5th '|' is line content (not stored)
+      // Remainder after 5th '|' is the original line content
+      if LPos5 > 0 then
+      begin
+        LInfo.OriginalText := Copy(LLine, LPos5 + 1, Length(LLine));
+        // Strip UTF-8 BOM that hg includes on line 1 of BOM-encoded files
+        if (LInfo.OriginalText <> '') and (LInfo.OriginalText[1] = #$FEFF) then
+          Delete(LInfo.OriginalText, 1, 1);
+      end;
 
       // Detect uncommitted
       LInfo.IsUncommitted := (LInfo.CommitHash = cHgUncommittedHash);
