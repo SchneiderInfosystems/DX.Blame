@@ -58,14 +58,10 @@ type
     FRepoRoot: string;
     FRelativeFilePath: string;
     FLineInfo: TBlameLineInfo;
-    FNoActivate: Boolean;
-
     procedure HandleCommitDetailComplete(const ADetail: TCommitDetail);
     procedure ApplyThemeColors;
     function IsDarkTheme: Boolean;
-    procedure CMDeactivate(var AMessage: TMessage); message CM_DEACTIVATE;
-    procedure CMDialogKey(var AMessage: TCMDialogKey); message CM_DIALOGKEY;
-    procedure CMShowingChanged(var AMessage: TMessage); message CM_SHOWINGCHANGED;
+    procedure WMMouseActivate(var AMessage: TWMMouseActivate); message WM_MOUSEACTIVATE;
   protected
     procedure CreateParams(var AParams: TCreateParams); override;
   public
@@ -120,35 +116,14 @@ procedure TDXBlamePopup.CreateParams(var AParams: TCreateParams);
 begin
   inherited CreateParams(AParams);
   AParams.Style := WS_POPUP or WS_BORDER;
-  AParams.ExStyle := AParams.ExStyle or WS_EX_TOOLWINDOW;
+  AParams.ExStyle := AParams.ExStyle or WS_EX_TOOLWINDOW or WS_EX_NOACTIVATE;
 end;
 
-procedure TDXBlamePopup.CMDeactivate(var AMessage: TMessage);
+procedure TDXBlamePopup.WMMouseActivate(var AMessage: TWMMouseActivate);
 begin
-  inherited;
-  Hide;
-end;
-
-procedure TDXBlamePopup.CMShowingChanged(var AMessage: TMessage);
-begin
-  if Showing and FNoActivate then
-  begin
-    ShowWindow(Handle, SW_SHOWNOACTIVATE);
-    FNoActivate := False;
-  end
-  else
-    inherited;
-end;
-
-procedure TDXBlamePopup.CMDialogKey(var AMessage: TCMDialogKey);
-begin
-  if AMessage.CharCode = VK_ESCAPE then
-  begin
-    Hide;
-    AMessage.Result := 1;
-  end
-  else
-    inherited;
+  // Allow mouse clicks on popup controls (buttons, labels) without
+  // stealing keyboard focus from the code editor.
+  AMessage.Result := MA_NOACTIVATE;
 end;
 
 procedure TDXBlamePopup.DoHashClick(ASender: TObject);
@@ -342,7 +317,6 @@ end;
 procedure TDXBlamePopup.ShowForHover(const ALineInfo: TBlameLineInfo;
   const AScreenPos: TPoint; const ARepoRoot, ARelativeFilePath: string);
 begin
-  FNoActivate := True;
   ShowForCommit(ALineInfo, AScreenPos, ARepoRoot, ARelativeFilePath);
 end;
 
