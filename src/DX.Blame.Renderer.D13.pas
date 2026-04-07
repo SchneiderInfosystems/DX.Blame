@@ -119,7 +119,6 @@ begin
   // Y is view-relative (row on screen), NOT a logical line number.
   // We only use this event to trigger a repaint; the actual logical
   // caret line is read from EditView.CursorPos.Line in PaintLine.
-  FCurrentEditor := Editor;
   InvalidateAllEditors;
   // Notify statusbar of caret movement using FCurrentLine from the last paint
   // cycle. FCurrentLine may lag one paint cycle, which is imperceptible.
