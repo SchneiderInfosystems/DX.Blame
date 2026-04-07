@@ -44,7 +44,6 @@ type
   TDXBlameRenderer = class(TNotifierObject, INTACodeEditorEvents)
   protected
     FCurrentLine: Integer;
-    FCurrentEditor: TWinControl;
     FCurrentFileName: string;
     { INTACodeEditorEvents }
     procedure EditorScrolled(const Editor: TWinControl;
@@ -114,8 +113,8 @@ var
 implementation
 
 uses
-  System.Generics.Collections,
   System.Math,
+  Winapi.Messages,
   Vcl.ExtCtrls,
   DX.Blame.Settings,
   DX.Blame.Formatter,
@@ -149,16 +148,14 @@ var
   GRendererIndex: Integer = -1;
   GPopup: TDXBlamePopup = nil;
 
-  // Per-paint-cycle annotation hit-test data:
-  // Maps paint rect top Y to annotation start X
-  GAnnotationXByRow: TDictionary<Integer, Integer>;
-  // Maps paint rect top Y to logical line number
-  GLineByRow: TDictionary<Integer, Integer>;
-  // Maps paint rect top Y to hash text pixel width (0 for uncommitted)
-  GHashWidthByRow: TDictionary<Integer, Integer>;
-  // Cell height from the last paint cycle
+  // Last-painted annotation position (only the caret line is annotated).
+  // Updated in PaintLine, reset in BeginPaint. Used for hit-testing in
+  // DoAnnotationClick and EditorMouseMove between paint cycles.
+  GAnnotationRowTop: Integer = -1;
+  GAnnotationStartX: Integer = 0;
+  GAnnotationHashWidth: Integer = 0;
+  GAnnotationLine: Integer = 0;
   GCellHeight: Integer = 0;
-  // Editor TWinControl from the last paint cycle
   GLastPaintEditor: TWinControl = nil;
 
   // Hover popup state
@@ -166,8 +163,20 @@ var
   GHoverCheckTimer: TTimer = nil;
   GHoverPopupLine: Integer = -1;
   GHoverAnnotationScreenRect: TRect;
-  // Tick count until which hover popup is suppressed (after scroll)
-  GScrollSuppressUntil: Cardinal = 0;
+
+  // Scroll detection
+  GPopupAnchorRowTop: Integer = -1;
+  GCaretLinePaintedThisCycle: Boolean = False;
+  // After scroll-dismiss, hover re-trigger is suppressed until the mouse
+  // physically moves away from its current screen position.
+  GScrollHideSuppressActive: Boolean = False;
+  GScrollHidePosX: Integer = 0;
+  GScrollHidePosY: Integer = 0;
+
+  // WM_MOUSEWHEEL subclassing: original WndProc of the editor control.
+  // Installed in BeginPaint when a new editor is seen; removed on unregister.
+  GSubclassedEditor: TWinControl = nil;
+  GOrigEditorWndProc: Pointer = nil;
 
 function DeriveAnnotationColor: TColor;
 var
@@ -183,6 +192,70 @@ begin
     LG := (GetGValue(LBgColor) + 128) div 2;
     LB := (GetBValue(LBgColor) + 128) div 2;
     Result := TColor(RGB(LR, LG, LB));
+  end;
+end;
+
+/// <summary>Hides the popup and resets all popup/hover tracking state.</summary>
+procedure HidePopup;
+begin
+  if (GPopup <> nil) and GPopup.Visible then
+    GPopup.Hide;
+  GHoverPopupLine := -1;
+  GPopupAnchorRowTop := -1;
+  if GHoverCheckTimer <> nil then
+    GHoverCheckTimer.Enabled := False;
+end;
+
+/// <summary>
+/// Hides popup due to scroll and activates position-based hover suppression.
+/// Hover will not re-trigger until the mouse physically moves from its
+/// current screen position, preventing flicker from EditorMouseMove events
+/// that fire at the same position after scroll.
+/// </summary>
+procedure HidePopupForScroll;
+var
+  LPos: TPoint;
+begin
+  HidePopup;
+  GetCursorPos(LPos);
+  GScrollHideSuppressActive := True;
+  GScrollHidePosX := LPos.X;
+  GScrollHidePosY := LPos.Y;
+end;
+
+/// <summary>
+/// Subclassed WndProc for the editor control. Intercepts WM_MOUSEWHEEL
+/// to hide the popup on mouse-wheel scroll, since neither EditorScrolled
+/// nor PaintLine fire during scroll-blit (the IDE shifts pixels instead
+/// of repainting individual lines).
+/// </summary>
+function EditorWndProc(AHwnd: HWND; AMsg: UINT; AWParam: WPARAM;
+  ALParam: LPARAM): LRESULT; stdcall;
+begin
+  if (AMsg = WM_MOUSEWHEEL) or (AMsg = WM_MOUSEHWHEEL) then
+    HidePopupForScroll;
+  Result := CallWindowProc(GOrigEditorWndProc, AHwnd, AMsg, AWParam, ALParam);
+end;
+
+procedure InstallEditorSubclass(AEditor: TWinControl);
+begin
+  if (AEditor = GSubclassedEditor) then
+    Exit;
+  // Remove old subclass if switching editors
+  if (GSubclassedEditor <> nil) and (GOrigEditorWndProc <> nil) then
+    SetWindowLongPtr(GSubclassedEditor.Handle, GWLP_WNDPROC, LONG_PTR(GOrigEditorWndProc));
+  GOrigEditorWndProc := Pointer(GetWindowLongPtr(AEditor.Handle, GWLP_WNDPROC));
+  SetWindowLongPtr(AEditor.Handle, GWLP_WNDPROC, LONG_PTR(@EditorWndProc));
+  GSubclassedEditor := AEditor;
+end;
+
+procedure RemoveEditorSubclass;
+begin
+  if (GSubclassedEditor <> nil) and (GOrigEditorWndProc <> nil) then
+  begin
+    SetWindowLongPtr(GSubclassedEditor.Handle, GWLP_WNDPROC, LONG_PTR(GOrigEditorWndProc));
+    GOrigEditorWndProc := nil;
+    GSubclassedEditor := nil;
   end;
 end;
 
@@ -214,21 +287,16 @@ end;
 procedure TDXBlameRenderer.BeginPaint(const Editor: TWinControl;
   const ForceFullRepaint: Boolean);
 begin
-  // Clear hit-test data for the new paint cycle
-  if GAnnotationXByRow <> nil then
-    GAnnotationXByRow.Clear;
-  if GLineByRow <> nil then
-    GLineByRow.Clear;
-  if GHashWidthByRow <> nil then
-    GHashWidthByRow.Clear;
+  GAnnotationRowTop := -1;
+  GCaretLinePaintedThisCycle := False;
 
   // Hide popup if editor changed (switched tabs)
   if (GLastPaintEditor <> nil) and (GLastPaintEditor <> Editor) then
-  begin
-    if (GPopup <> nil) and GPopup.Visible then
-      GPopup.Hide;
-  end;
+    HidePopup;
   GLastPaintEditor := Editor;
+
+  // Subclass editor to intercept WM_MOUSEWHEEL for scroll detection
+  InstallEditorSubclass(Editor);
 end;
 
 procedure TDXBlameRenderer.PaintLine(const Rect: TRect;
@@ -412,11 +480,11 @@ begin
       end;
     end;
 
-    // Store annotation position for click hit-testing
-    if GAnnotationXByRow <> nil then
-      GAnnotationXByRow.AddOrSetValue(Rect.Top, LAnnotationX);
-    if GLineByRow <> nil then
-      GLineByRow.AddOrSetValue(Rect.Top, LLogicalLine);
+    // Store annotation position for hit-testing and scroll detection
+    GAnnotationRowTop := Rect.Top;
+    GAnnotationStartX := LAnnotationX;
+    GAnnotationLine := LLogicalLine;
+    GCaretLinePaintedThisCycle := True;
 
     // Transparent background for annotation text
     LCanvas.Brush.Style := bsClear;
@@ -433,23 +501,20 @@ begin
         LCanvas.Font.Style := [fsUnderline, fsItalic];
         LCanvas.TextOut(LAnnotationX, Rect.Top, LHashText);
         LHashWidth := LCanvas.TextWidth(LHashText);
-        if GHashWidthByRow <> nil then
-          GHashWidthByRow.AddOrSetValue(Rect.Top, LHashWidth);
+        GAnnotationHashWidth := LHashWidth;
         LCanvas.Font.Style := [fsItalic];
         LCanvas.TextOut(LAnnotationX + LHashWidth, Rect.Top, LRestText);
       end
       else
       begin
-        if GHashWidthByRow <> nil then
-          GHashWidthByRow.AddOrSetValue(Rect.Top, 0);
+        GAnnotationHashWidth := 0;
         LCanvas.TextOut(LAnnotationX, Rect.Top, LText);
       end;
     end
     else
     begin
       // Hover mode: plain italic, no hotlink underline
-      if GHashWidthByRow <> nil then
-        GHashWidthByRow.AddOrSetValue(Rect.Top, 0);
+      GAnnotationHashWidth := 0;
       LCanvas.TextOut(LAnnotationX, Rect.Top, LText);
     end;
   finally
@@ -479,21 +544,23 @@ end;
 
 procedure TDXBlameRenderer.EndPaint(const Editor: TWinControl);
 begin
-  // No action needed
+  if (GPopup = nil) or (not GPopup.Visible) then
+    Exit;
+  if not GCaretLinePaintedThisCycle then
+  begin
+    // Annotation was not painted — caret off-screen or no data
+    HidePopupForScroll;
+    Exit;
+  end;
+  // Annotation was painted — check if it moved (scroll with caret still visible)
+  if (GPopupAnchorRowTop >= 0) and (GAnnotationRowTop <> GPopupAnchorRowTop) then
+    HidePopupForScroll;
 end;
 
 procedure TDXBlameRenderer.EditorScrolled(const Editor: TWinControl;
   const Direction: TCodeEditorScrollDirection);
 begin
-  // Close popup and suppress hover re-trigger for 500 ms so that
-  // EditorMouseMove (which fires immediately because the cursor is
-  // still over the annotation area) does not re-open it.
-  if (GPopup <> nil) and GPopup.Visible then
-    GPopup.Hide;
-  GHoverPopupLine := -1;
-  if GHoverCheckTimer <> nil then
-    GHoverCheckTimer.Enabled := False;
-  GScrollSuppressUntil := GetTickCount + 500;
+  HidePopupForScroll;
 end;
 
 procedure TDXBlameRenderer.EditorResized(const Editor: TWinControl);
@@ -517,77 +584,50 @@ procedure TDXBlameRenderer.DoAnnotationClick(const Editor: TWinControl;
   Button: TMouseButton; Shift: TShiftState; X, Y: Integer;
   var Handled: Boolean);
 var
-  LRowTop: Integer;
-  LAnnotationX: Integer;
-  LLogicalLine: Integer;
   LLineIndex: Integer;
   LFileName: string;
   LBlameData: TBlameData;
   LScreenPos: TPoint;
   LRepoRoot: string;
   LRelPath: string;
-  LPair: TPair<Integer, Integer>;
-  LFound: Boolean;
 begin
   if Button <> mbLeft then
     Exit;
   if not BlameSettings.Enabled then
     Exit;
-  // In hover mode, popup is triggered by mouse move, not click
+  {$IFDEF DEBUG}
+  DebugLog(Format('DX.Blame: DoAnnotationClick X=%d Y=%d trigger=%d',
+    [X, Y, Ord(BlameSettings.PopupTrigger)]));
+  {$ENDIF}
   if BlameSettings.PopupTrigger = ptHover then
     Exit;
-  if GAnnotationXByRow = nil then
+  if GAnnotationRowTop < 0 then
     Exit;
   if GCellHeight <= 0 then
     Exit;
 
-  // Find the row that contains the click Y coordinate
-  LFound := False;
-  LRowTop := 0;
-  LAnnotationX := 0;
-  LLogicalLine := 0;
-
-  for LPair in GAnnotationXByRow do
-  begin
-    LRowTop := LPair.Key;
-    if (Y >= LRowTop) and (Y < LRowTop + GCellHeight) then
-    begin
-      LAnnotationX := LPair.Value;
-      if (GLineByRow <> nil) and GLineByRow.TryGetValue(LRowTop, LLogicalLine) then
-        LFound := True;
-      Break;
-    end;
-  end;
-
-  if not LFound then
+  // Hit-test: click must be on the underlined hash region
+  if (Y < GAnnotationRowTop) or (Y >= GAnnotationRowTop + GCellHeight) then
+    Exit;
+  if X < GAnnotationStartX then
+    Exit;
+  if GAnnotationHashWidth = 0 then
+    Exit;
+  if X >= GAnnotationStartX + GAnnotationHashWidth then
     Exit;
 
-  // Check if click is on the underlined hash region only
-  if X < LAnnotationX then
-    Exit;
-  if (GHashWidthByRow = nil) or not GHashWidthByRow.ContainsKey(LRowTop) then
-    Exit;
-  if GHashWidthByRow[LRowTop] = 0 then
-    Exit; // uncommitted line, not clickable
-  if X >= LAnnotationX + GHashWidthByRow[LRowTop] then
-    Exit;
-
-  // Get blame data for the clicked line
   LFileName := FCurrentFileName;
   if LFileName = '' then
     Exit;
-
   if not BlameEngine.Cache.TryGet(LFileName, LBlameData) then
     Exit;
 
-  LLineIndex := LLogicalLine - 1;
+  LLineIndex := GAnnotationLine - 1;
   if (LLineIndex < 0) or (LLineIndex >= Length(LBlameData.Lines)) then
     Exit;
 
-  // Compute screen position for popup placement
   LScreenPos := Editor.ClientToScreen(Point(X, Y));
 
-  // Compute relative file path for git commands
   LRepoRoot := BlameEngine.RepoRoot;
   if LRepoRoot <> '' then
     LRelPath := ExtractRelativePath(
@@ -596,9 +636,10 @@ begin
     LRelPath := ExtractFileName(LFileName);
   LRelPath := StringReplace(LRelPath, '\\', '/', [rfReplaceAll]);
 
-  // Create or update popup
   if GPopup = nil then
     GPopup := TDXBlamePopup.Create(nil);
+
+  GPopupAnchorRowTop := GAnnotationRowTop;
 
   if GPopup.Visible then
     GPopup.UpdateContent(LBlameData.Lines[LLineIndex], LRepoRoot, LRelPath)
@@ -624,54 +665,45 @@ end;
 procedure TDXBlameRenderer.EditorMouseMove(const Editor: TWinControl;
   Shift: TShiftState; X, Y: Integer);
 var
-  LPair: TPair<Integer, Integer>;
-  LRowTop: Integer;
-  LAnnotationX: Integer;
-  LLogicalLine: Integer;
   LLineIndex: Integer;
   LBlameData: TBlameData;
   LScreenPos: TPoint;
   LRepoRoot: string;
   LRelPath: string;
+  LCursorScreenPos: TPoint;
+  LMouseOverAnnotation: Boolean;
 begin
   if BlameSettings.PopupTrigger <> ptHover then
     Exit;
   if not BlameSettings.Enabled then
     Exit;
-  // Suppress hover popup briefly after scroll to prevent flicker
-  if GetTickCount < GScrollSuppressUntil then
-    Exit;
-  if GAnnotationXByRow = nil then
-    Exit;
-  if GCellHeight <= 0 then
-    Exit;
-
-  // Only trigger hover on the caret line where an annotation is actually shown
   if not BlameSettings.ShowInline then
     Exit;
   if FCurrentLine <= 0 then
     Exit;
 
-  // Check if mouse is over the caret line's annotation area
-  LLogicalLine := -1;
-  LRowTop := 0;
-  LAnnotationX := 0;
-  for LPair in GAnnotationXByRow do
+  // After scroll-dismiss, suppress hover until mouse physically moves
+  if GScrollHideSuppressActive then
   begin
-    LRowTop := LPair.Key;
-    if (Y >= LRowTop) and (Y < LRowTop + GCellHeight) and (X >= LPair.Value) then
-    begin
-      LAnnotationX := LPair.Value;
-      if (GLineByRow <> nil) then
-        GLineByRow.TryGetValue(LRowTop, LLogicalLine);
-      // Only accept if this is the caret line
-      if LLogicalLine <> FCurrentLine then
-        LLogicalLine := -1;
-      Break;
-    end;
+    GetCursorPos(LCursorScreenPos);
+    if (Abs(LCursorScreenPos.X - GScrollHidePosX) <= 3) and
+       (Abs(LCursorScreenPos.Y - GScrollHidePosY) <= 3) then
+      Exit;
+    GScrollHideSuppressActive := False;
   end;
 
-  if LLogicalLine <= 0 then
+  if GAnnotationRowTop < 0 then
+    Exit;
+  if GCellHeight <= 0 then
+    Exit;
+
+  // Single hit-test against the one annotation row
+  LMouseOverAnnotation :=
+    (GAnnotationLine = FCurrentLine) and
+    (Y >= GAnnotationRowTop) and (Y < GAnnotationRowTop + GCellHeight) and
+    (X >= GAnnotationStartX);
+
+  if not LMouseOverAnnotation then
   begin
     // Mouse not over annotation — start hide timer if popup is showing
     if (GHoverPopupLine > 0) and (GHoverCheckTimer <> nil) then
@@ -684,23 +716,21 @@ begin
     GHoverCheckTimer.Enabled := False;
 
   // Already showing popup for this line
-  if (GPopup <> nil) and GPopup.Visible and (GHoverPopupLine = LLogicalLine) then
+  if (GPopup <> nil) and GPopup.Visible and (GHoverPopupLine = GAnnotationLine) then
     Exit;
 
-  // Get blame data for hover
   if FCurrentFileName = '' then
     Exit;
   if not BlameEngine.Cache.TryGet(FCurrentFileName, LBlameData) then
     Exit;
 
-  LLineIndex := LLogicalLine - 1;
+  LLineIndex := GAnnotationLine - 1;
   if (LLineIndex < 0) or (LLineIndex >= Length(LBlameData.Lines)) then
     Exit;
 
-  // Compute screen position for popup near the annotation
-  LScreenPos := Editor.ClientToScreen(Point(LAnnotationX, LRowTop + GCellHeight));
+  LScreenPos := Editor.ClientToScreen(
+    Point(GAnnotationStartX, GAnnotationRowTop + GCellHeight));
 
-  // Compute relative file path
   LRepoRoot := BlameEngine.RepoRoot;
   if LRepoRoot <> '' then
     LRelPath := ExtractRelativePath(
@@ -710,24 +740,23 @@ begin
   LRelPath := StringReplace(LRelPath, '\\', '/', [rfReplaceAll]);
 
   // Store annotation screen rect for hover check timer
-  GHoverAnnotationScreenRect := Rect(
-    Editor.ClientToScreen(Point(LAnnotationX, LRowTop)).X,
-    Editor.ClientToScreen(Point(LAnnotationX, LRowTop)).Y,
-    Editor.ClientToScreen(Point(Editor.Width, LRowTop + GCellHeight)).X,
-    Editor.ClientToScreen(Point(Editor.Width, LRowTop + GCellHeight)).Y);
+  GHoverAnnotationScreenRect := System.Types.Rect(
+    Editor.ClientToScreen(Point(GAnnotationStartX, GAnnotationRowTop)).X,
+    Editor.ClientToScreen(Point(GAnnotationStartX, GAnnotationRowTop)).Y,
+    Editor.ClientToScreen(Point(Editor.Width, GAnnotationRowTop + GCellHeight)).X,
+    Editor.ClientToScreen(Point(Editor.Width, GAnnotationRowTop + GCellHeight)).Y);
 
-  // Create or show popup
   if GPopup = nil then
     GPopup := TDXBlamePopup.Create(nil);
 
-  GHoverPopupLine := LLogicalLine;
+  GHoverPopupLine := GAnnotationLine;
+  GPopupAnchorRowTop := GAnnotationRowTop;
 
   if GPopup.Visible then
     GPopup.UpdateContent(LBlameData.Lines[LLineIndex], LRepoRoot, LRelPath)
   else
     GPopup.ShowForHover(LBlameData.Lines[LLineIndex], LScreenPos, LRepoRoot, LRelPath);
 
-  // Start hover check timer
   if GHoverCheckTimer <> nil then
     GHoverCheckTimer.Enabled := True;
 end;
@@ -754,7 +783,9 @@ begin
     GPopup.Hide;
   end;
   GHoverPopupLine := -1;
-  GHoverCheckTimer.Enabled := False;
+  GPopupAnchorRowTop := -1;
+  if GHoverCheckTimer <> nil then
+    GHoverCheckTimer.Enabled := False;
 end;
 
 { Module-level helpers }
@@ -781,14 +812,6 @@ procedure RegisterRenderer(ANotifier: INTACodeEditorEvents);
 var
   LServices: INTACodeEditorServices;
 begin
-  // Initialize hit-test dictionaries
-  if GAnnotationXByRow = nil then
-    GAnnotationXByRow := TDictionary<Integer, Integer>.Create;
-  if GLineByRow = nil then
-    GLineByRow := TDictionary<Integer, Integer>.Create;
-  if GHashWidthByRow = nil then
-    GHashWidthByRow := TDictionary<Integer, Integer>.Create;
-
   // Initialize hover timer
   if GHoverTimerHelper = nil then
     GHoverTimerHelper := THoverTimerHelper.Create;
@@ -808,6 +831,7 @@ procedure UnregisterRenderer;
 var
   LServices: INTACodeEditorServices;
 begin
+  RemoveEditorSubclass;
   if GRendererIndex >= 0 then
   begin
     if Supports(BorlandIDEServices, INTACodeEditorServices, LServices) then
@@ -819,11 +843,9 @@ end;
 initialization
 
 finalization
+  RemoveEditorSubclass;
   CleanupPopup;
   FreeAndNil(GHoverCheckTimer);
   FreeAndNil(GHoverTimerHelper);
-  FreeAndNil(GAnnotationXByRow);
-  FreeAndNil(GLineByRow);
-  FreeAndNil(GHashWidthByRow);
 
 end.
